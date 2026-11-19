@@ -60,7 +60,7 @@ export function QuoteSubmitPage({ projectId, onSuccess, onBack }: QuoteSubmitPag
             <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-xl text-slate-400">—</div>
             <p className="font-semibold text-slate-700">Le plan média est vide</p>
             <p className="mt-1 text-sm text-slate-500">Ajoutez des lignes avant de préparer le devis.</p>
-            <button onClick={onBack} className="mt-5 rounded-lg bg-[#003189] px-4 py-2.5 text-sm font-bold text-white">
+            <button onClick={onBack} className="mt-5 rounded-lg bg-[#0055B8] px-4 py-2.5 text-sm font-bold text-white">
               Retour au simulateur
             </button>
           </div>
@@ -80,7 +80,7 @@ export function QuoteSubmitPage({ projectId, onSuccess, onBack }: QuoteSubmitPag
       <div className="mb-5 flex items-center print:hidden">
         <button
           onClick={onBack}
-          className="text-sm font-semibold text-slate-500 transition hover:text-[#003189]"
+          className="text-sm font-semibold text-slate-500 transition hover:text-[#0055B8]"
           aria-label="Retour au simulateur"
         >
           ← Retour au simulateur
@@ -163,7 +163,7 @@ export function QuoteSubmitPage({ projectId, onSuccess, onBack }: QuoteSubmitPag
               type="checkbox"
               checked={confirmed}
               onChange={(e) => setConfirmed(e.target.checked)}
-              className="mt-0.5 w-4 h-4 accent-blue-600"
+              className="mt-0.5 w-4 h-4 accent-gtv-blue"
               aria-label="Je confirme avoir vérifié le plan média"
             />
             <span className="text-sm">
@@ -199,7 +199,7 @@ export function QuoteSubmitPage({ projectId, onSuccess, onBack }: QuoteSubmitPag
               aria-busy={status === 'loading'}
               className={`h-10 rounded-lg px-5 text-sm font-bold transition-colors ${
                 confirmed && status === 'idle'
-                  ? 'bg-[#003189] text-white shadow-[0_8px_18px_rgba(0,49,137,0.14)] hover:bg-[#002570]'
+                  ? 'bg-[#0055B8] text-white shadow-[0_8px_18px_rgba(0,85,184,0.14)] hover:bg-[#00338D]'
                   : 'bg-gray-200 text-gray-400 cursor-not-allowed'
               }`}
             >
@@ -241,7 +241,7 @@ function MetaField({
 function PageLoader() {
   return (
     <div className="min-h-screen flex items-center justify-center text-gray-400">
-      <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-6 h-6 border-2 border-gtv-blue-light border-t-transparent rounded-full animate-spin" />
     </div>
   );
 }

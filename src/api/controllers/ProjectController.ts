@@ -5,8 +5,14 @@
 import { Request, Response, NextFunction } from 'express';
 import { ProjectRepository } from '../repositories/ProjectRepository';
 import { RateCardRepository } from '../repositories/RateCardRepository';
-import { Errors } from '../errors/AppError';
+import { AppError, Errors } from '../errors/AppError';
 import type { ApiResponse } from '../types';
+
+const ADMIN_PROJECT_TRANSITIONS: Record<string, string[]> = {
+  SUBMITTED: ['NEGOTIATION', 'CLOSED_WON', 'CLOSED_LOST'],
+  NEGOTIATION: ['CLOSED_WON', 'CLOSED_LOST'],
+};
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export class ProjectController {
   constructor(
@@ -45,6 +51,31 @@ export class ProjectController {
     }
   };
 
+  updateStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const status = req.body?.status;
+      if (!UUID_PATTERN.test(id)) return next(Errors.validation({ field: 'id' }));
+      if (typeof status !== 'string') return next(Errors.validation({ field: 'status' }));
+
+      const project = await this.projectRepo.findById(id);
+      if (!project) return next(Errors.notFound('project', id));
+      if (!ADMIN_PROJECT_TRANSITIONS[project.status]?.includes(status)) {
+        return next(Errors.validation({
+          message: `Transition de statut impossible : ${project.status} → ${status}.`,
+        }));
+      }
+
+      const updated = await this.projectRepo.updateStatus(id, project.status, status);
+      if (!updated) {
+        return next(new AppError('PROJECT_STATUS_CONFLICT', 'Le projet a été modifié. Actualisez la page.', 409));
+      }
+      res.json({ success: true, data: { id, status } } satisfies ApiResponse<{ id: string; status: string }>);
+    } catch (err) {
+      next(err);
+    }
+  };
+
   /** POST /api/projects */
   create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -69,8 +100,8 @@ export class ProjectController {
         clientId,
         ownerId: req.user!.id,
         rateCardId: activeCard.id,
-        campaignStart: campaignStart ? new Date(campaignStart) : undefined,
-        campaignEnd:   campaignEnd   ? new Date(campaignEnd)   : undefined,
+        campaignStart,
+        campaignEnd,
         budgetTarget,
       });
 

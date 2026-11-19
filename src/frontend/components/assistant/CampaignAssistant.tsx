@@ -120,7 +120,7 @@ export function CampaignAssistant({ options, isLoading, targetSegment }: Campaig
               className={`shrink-0 rounded-lg px-3 py-2 text-xs font-bold transition-colors ${
                 isAdded
                   ? 'cursor-default bg-slate-100 text-slate-400'
-                  : 'bg-[#003189] text-white hover:bg-[#002570]'
+                  : 'bg-[#0055B8] text-white hover:bg-[#00338D]'
               }`}
             >
               {isAdded ? '✓ Ajouté' : '+ Ajouter'}

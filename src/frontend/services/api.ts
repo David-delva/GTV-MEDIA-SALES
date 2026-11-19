@@ -68,6 +68,7 @@ export interface RateCardLineDto {
   channel: string;
   grossPrice: number;
   discountMaxPct: number;
+  currency: string;
   isNegotiable: boolean;
 }
 
@@ -78,8 +79,49 @@ export interface ActiveRateCardDto {
   lines: RateCardLineDto[];
 }
 
+export interface AdminRateCardDto {
+  id: string;
+  name: string;
+  validFrom: string;
+  validTo: string | null;
+  status: 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
+  createdAt: string;
+  lines: RateCardLineDto[];
+}
+
 export const rateCardsApi = {
   getActive: () => request<ActiveRateCardDto>('/rate-cards/active'),
+  listAdmin: () => request<AdminRateCardDto[]>('/admin/rate-cards'),
+  create: (payload: { name: string; validFrom: string; validTo?: string }) =>
+    request<{ id: string }>('/rate-cards', { method: 'POST', body: JSON.stringify(payload) }),
+  addLine: (rateCardId: string, payload: {
+    formatId: string;
+    daypart: string;
+    channel: string;
+    grossPrice: number;
+    discountMaxPct: number;
+    currency: string;
+    isNegotiable: boolean;
+  }) => request<RateCardLineDto>(`/admin/rate-cards/${rateCardId}/lines`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }),
+  updateLine: (rateCardId: string, lineId: string, payload: {
+    formatId: string;
+    daypart: string;
+    channel: string;
+    grossPrice: number;
+    discountMaxPct: number;
+    currency: string;
+    isNegotiable: boolean;
+  }) => request<RateCardLineDto>(`/admin/rate-cards/${rateCardId}/lines/${lineId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  }),
+  deleteLine: (rateCardId: string, lineId: string) =>
+    request<never>(`/admin/rate-cards/${rateCardId}/lines/${lineId}`, { method: 'DELETE' }),
+  activate: (id: string) =>
+    request<never>(`/rate-cards/${id}/activate`, { method: 'PATCH' }),
 };
 
 // ── Scoring ───────────────────────────────────────────────────────────────────
@@ -148,6 +190,11 @@ export interface ProjectDto {
 export const projectsApi = {
   list:   ()           => request<ProjectDto[]>('/projects'),
   getOne: (id: string) => request<ProjectDto>(`/projects/${id}`),
+  updateStatus: (id: string, status: string) =>
+    request<{ id: string; status: string }>(`/projects/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }),
   create: (payload: {
     title: string;
     clientId: string;
@@ -160,6 +207,28 @@ export const projectsApi = {
     request<never>(`/projects/${id}/submit`, {
       method: 'POST',
       body: JSON.stringify({ scoringSnapshot }),
+    }),
+};
+
+// ── Administration ────────────────────────────────────────────────────────────
+
+export interface AdminUserDto {
+  id: string;
+  email: string;
+  name: string;
+  role: import('../../api/types').UserRole;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export const adminUsersApi = {
+  list: () => request<AdminUserDto[]>('/admin/users'),
+  create: (payload: { email: string; name: string; role: AdminUserDto['role']; password: string }) =>
+    request<AdminUserDto>('/admin/users', { method: 'POST', body: JSON.stringify(payload) }),
+  setActive: (id: string, isActive: boolean) =>
+    request<{ id: string; isActive: boolean }>(`/admin/users/${id}/active`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isActive }),
     }),
 };
 

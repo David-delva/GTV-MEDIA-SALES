@@ -70,7 +70,7 @@ export function ProjectWorkspace({ projectId, onSubmitSuccess }: ProjectWorkspac
       <div className="flex min-h-[calc(100vh-147px)] flex-col">
       <header className="border-b border-slate-200/80 bg-white px-5 py-3 lg:px-8">
         <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-3">
-        <Link to="/projects" className="mr-1 text-slate-400 transition hover:text-[#003189]" aria-label="Retour aux projets">
+        <Link to="/projects" className="mr-1 text-slate-400 transition hover:text-[#0055B8]" aria-label="Retour aux projets">
           ←
         </Link>
         <div className="min-w-[150px]">
@@ -117,7 +117,7 @@ export function ProjectWorkspace({ projectId, onSubmitSuccess }: ProjectWorkspac
             aria-disabled={!canSubmit}
             className={`flex h-10 items-center rounded-lg px-4 text-sm font-bold transition-colors ${
               canSubmit
-                ? 'bg-[#003189] text-white shadow-[0_8px_18px_rgba(0,49,137,0.14)] hover:bg-[#002570]'
+                ? 'bg-[#0055B8] text-white shadow-[0_8px_18px_rgba(0,85,184,0.14)] hover:bg-[#00338D]'
                 : 'bg-gray-200 text-gray-400 cursor-not-allowed pointer-events-none'
             }`}
           >
@@ -161,7 +161,7 @@ function WorkspaceLoader() {
   return (
     <div className="min-h-screen flex items-center justify-center text-gray-400">
       <div className="text-center space-y-2">
-        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
+        <div className="w-8 h-8 border-2 border-gtv-blue-light border-t-transparent rounded-full animate-spin mx-auto" />
         <p className="text-sm">Chargement du projet…</p>
       </div>
     </div>

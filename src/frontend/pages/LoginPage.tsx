@@ -12,7 +12,7 @@ import { GtvLogo } from '../components/ui/AppShell';
 const BASE_URL = import.meta.env.VITE_API_URL ?? '/api';
 
 export function LoginPage() {
-  const { login, isAuthenticated } = useAuthStore();
+  const { login, isAuthenticated, user } = useAuthStore();
   const navigate = useNavigate();
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
@@ -35,7 +35,7 @@ export function LoginPage() {
       if (!res.ok) throw new ApiError(body.error?.code, body.error?.message, res.status);
 
       login(body.data.token, body.data.user);
-      navigate('/projects', { replace: true });
+      navigate(body.data.user.role === 'ADMIN' ? '/admin' : '/projects', { replace: true });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Identifiants incorrects');
     } finally {
@@ -43,29 +43,43 @@ export function LoginPage() {
     }
   };
 
-  if (isAuthenticated) return <Navigate to="/projects" replace />;
+  if (isAuthenticated) return <Navigate to={user?.role === 'ADMIN' ? '/admin' : '/projects'} replace />;
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#071b3a]">
+    <div className="relative min-h-screen overflow-hidden bg-[#00338D]">
       <div className="absolute inset-0 opacity-25" aria-hidden="true">
         <div className="absolute -right-40 -top-48 h-[520px] w-[520px] rounded-full border-[80px] border-[#fcd116]/20" />
         <div className="absolute -bottom-52 -left-36 h-[520px] w-[520px] rounded-full border-[90px] border-[#009a44]/20" />
       </div>
 
       <div className="relative grid min-h-screen lg:grid-cols-[1.08fr_0.92fr]">
-        <section className="hidden flex-col justify-between p-12 text-white lg:flex">
-          <GtvLogo />
-          <div className="max-w-xl pb-10">
-            <p className="mb-5 text-xs font-bold uppercase tracking-[0.22em] text-[#fcd116]">Plateforme commerciale</p>
-            <h1 className="text-5xl font-bold leading-[1.08] tracking-tight">
-              Chaque campagne,<br />
-              une décision éclairée.
-            </h1>
-            <p className="mt-6 max-w-md text-base leading-7 text-blue-100/75">
-              Scoragez les opportunités, simulez le budget et préparez vos propositions média depuis un espace unique.
-            </p>
+        <section className="relative hidden flex-col justify-between overflow-hidden p-12 text-white lg:flex">
+          <img
+            src="/images/news-studio.jpg"
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-[#00338D]/90 via-[#0055B8]/75 to-[#00338D]/90" />
+          <div className="relative z-10 flex h-full flex-col justify-between">
+            <GtvLogo />
+            <div className="max-w-xl pb-10">
+              <p className="mb-5 text-xs font-bold uppercase tracking-[0.22em] text-[#fcd116]">Plateforme commerciale</p>
+              <h1 className="text-5xl font-bold leading-[1.08] tracking-tight">
+                Chaque campagne,<br />
+                une décision éclairée.
+              </h1>
+              <p className="mt-6 max-w-md text-base leading-7 text-white/75">
+                Scoragez les opportunités, simulez le budget et préparez vos propositions média depuis un espace unique.
+              </p>
+            </div>
+            <div className="flex items-center justify-between gap-4 text-xs text-white/60">
+              <p>Gabon Télévisions — GTV Media Sales</p>
+              <a className="font-semibold text-white/80 hover:text-white hover:underline" href="/images/credits.html">
+                Crédits photos
+              </a>
+            </div>
           </div>
-          <p className="text-xs text-blue-200/60">Gabon Télévisions — GTV Media Sales</p>
         </section>
 
         <main className="flex items-center justify-center bg-[#f7f9fc] px-6 py-12">
@@ -120,7 +134,7 @@ export function LoginPage() {
                 type="submit"
                 disabled={loading}
                 aria-busy={loading}
-                className="flex h-11 w-full items-center justify-center rounded-lg bg-[#003189] px-4 text-sm font-bold text-white shadow-[0_8px_20px_rgba(0,49,137,0.18)] transition hover:bg-[#002570] disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex h-11 w-full items-center justify-center rounded-lg bg-[#0055B8] px-4 text-sm font-bold text-white shadow-[0_8px_20px_rgba(0,85,184,0.18)] transition hover:bg-[#00338D] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? 'Connexion…' : 'Se connecter'}
               </button>

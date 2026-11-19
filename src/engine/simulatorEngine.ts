@@ -88,8 +88,8 @@ export function computeSimulator(
  *   à son poids budgétaire actuel parmi les lignes libres.
  *
  * Gestion des arrondis :
- *   La dernière ligne libre absorbe le résidu d'arrondi pour garantir
- *   que la somme est exactement égale au budget cible.
+ *   La dernière ligne libre absorbe le résidu des quantités arrondies.
+ *   Retourne null si les passages entiers ne permettent pas d'atteindre le budget.
  *
  * @returns nouvelles lignes, ou null si le rééquilibrage est impossible
  */
@@ -100,7 +100,7 @@ export function rebalanceLines(
   budgetTarget: number
 ): SimulatorLine[] | null {
   const changedLine = lines.find((l) => l.id === changedLineId);
-  if (!changedLine) return null;
+  if (!changedLine || changedLine.isLocked || !Number.isFinite(newNetBudget) || newNetBudget < 0) return null;
 
   const freeLines = lines.filter((l) => l.id !== changedLineId && !l.isLocked);
 
@@ -108,7 +108,16 @@ export function rebalanceLines(
   if (freeLines.length === 0) return null;
 
   const currentNetChanged = lineNetPrice(changedLine);
-  const delta = newNetBudget - currentNetChanged; // positif = la ligne augmente
+  const effectiveUnitPriceChanged = changedLine.grossPriceUnit * (1 - changedLine.discountPct / 100);
+  if (effectiveUnitPriceChanged <= 0 && Math.abs(newNetBudget - currentNetChanged) > BALANCE_TOLERANCE) return null;
+
+  // Les quantités représentent des passages entiers : redistribuer le delta réellement atteignable.
+  const newQuantityChanged = effectiveUnitPriceChanged > 0
+    ? Math.max(0, Math.round(newNetBudget / effectiveUnitPriceChanged))
+    : changedLine.quantity;
+  const updatedChangedLine = { ...changedLine, quantity: newQuantityChanged };
+  const actualNewNetChanged = lineNetPrice(updatedChangedLine);
+  const delta = actualNewNetChanged - currentNetChanged; // positif = la ligne augmente
 
   const sumFreeNet = freeLines.reduce((acc, l) => acc + lineNetPrice(l), 0);
 
@@ -146,18 +155,35 @@ export function rebalanceLines(
   // Reconstruction du tableau complet avec les lignes mises à jour
   const freeIds = new Set(freeLines.map((l) => l.id));
   const updatedFreeMap = new Map(updatedFree.map((l) => [l.id, l]));
+  const lastFreeLine = freeLines[freeLines.length - 1];
 
-  // Mise à jour de la ligne modifiée : recalcul de la quantité depuis newNetBudget
-  const effectiveUnitPriceChanged = changedLine.grossPriceUnit * (1 - changedLine.discountPct / 100);
-  const newQuantityChanged = effectiveUnitPriceChanged > 0
-    ? Math.max(0, Math.round(newNetBudget / effectiveUnitPriceChanged))
-    : changedLine.quantity;
+  // La dernière ligne libre absorbe le résidu des quantités réellement arrondies.
+  const totalWithoutLastLine = lines.reduce((total, line) => {
+    if (line.id === lastFreeLine.id) return total;
+    if (line.id === changedLineId) return total + lineNetPrice(updatedChangedLine);
+    if (freeIds.has(line.id)) return total + lineNetPrice(updatedFreeMap.get(line.id)!);
+    return total + lineNetPrice(line);
+  }, 0);
+  const targetLastNet = budgetTarget - totalWithoutLastLine;
+  if (targetLastNet < -BALANCE_TOLERANCE) return null;
 
-  return lines.map((l) => {
-    if (l.id === changedLineId) return { ...l, quantity: newQuantityChanged };
-    if (freeIds.has(l.id))     return updatedFreeMap.get(l.id)!;
-    return l;                  // lignes verrouillées : inchangées
+  const lastUpdated = updatedFreeMap.get(lastFreeLine.id)!;
+  const effectiveUnitPriceLast = lastUpdated.grossPriceUnit * (1 - lastUpdated.discountPct / 100);
+  const correctedLastLine = {
+    ...lastUpdated,
+    quantity: effectiveUnitPriceLast > 0
+      ? Math.max(0, Math.round(Math.max(0, targetLastNet) / effectiveUnitPriceLast))
+      : lastUpdated.quantity,
+  };
+
+  const result = lines.map((line) => {
+    if (line.id === changedLineId) return updatedChangedLine;
+    if (line.id === lastFreeLine.id) return correctedLastLine;
+    if (freeIds.has(line.id)) return updatedFreeMap.get(line.id)!;
+    return line; // lignes verrouillées : inchangées
   });
+  const totalNet = result.reduce((total, line) => total + lineNetPrice(line), 0);
+  return Math.abs(totalNet - budgetTarget) <= BALANCE_TOLERANCE ? result : null;
 }
 
 // =============================================================================

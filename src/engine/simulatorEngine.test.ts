@@ -78,12 +78,23 @@ describe('rebalanceLines — invariant Σ net ≈ budgetTarget', () => {
   test('rééquilibrage simple : augmenter A réduit B proportionnellement', () => {
     const lines = [LINE_A, LINE_B]; // total = 500 000
     const budget = 500_000;
-    // On veut que A passe à 350 000 net → B doit passer à 150 000
+    // A s’arrondit à 400 000 pour un nombre entier de passages; B absorbe les 100 000 réels.
     const result = rebalanceLines(lines, 'A', 350_000, budget);
     expect(result).not.toBeNull();
     const netA = lineNetPrice(result!.find((l) => l.id === 'A')!);
     const netB = lineNetPrice(result!.find((l) => l.id === 'B')!);
     expect(netA + netB).toBeCloseTo(budget, 0);
+    expect(netA).toBe(400_000);
+    expect(netB).toBe(100_000);
+  });
+
+  test('retourne null si les passages entiers ne permettent pas d’équilibrer le budget', () => {
+    const lines = [
+      LINE_A,
+      makeLine({ id: 'B', grossPriceUnit: 70_000, quantity: 2 }),
+    ];
+
+    expect(rebalanceLines(lines, 'A', 350_000, 440_000)).toBeNull();
   });
 
   test('retourne null si toutes les autres lignes sont verrouillées', () => {

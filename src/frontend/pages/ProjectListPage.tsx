@@ -11,7 +11,7 @@ import { useAuthStore } from '../store/authStore';
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   DRAFT:        { label: 'Brouillon',    color: 'bg-gray-100 text-gray-600' },
-  SUBMITTED:    { label: 'Soumis',       color: 'bg-blue-100 text-blue-700' },
+  SUBMITTED:    { label: 'Soumis',       color: 'bg-gtv-blue-light/10 text-gtv-blue-dark' },
   NEGOTIATION:  { label: 'Négociation',  color: 'bg-amber-100 text-amber-700' },
   CLOSED_WON:   { label: 'Gagné',        color: 'bg-emerald-100 text-emerald-700' },
   CLOSED_LOST:  { label: 'Perdu',        color: 'bg-red-100 text-red-600' },
@@ -108,7 +108,7 @@ export function ProjectListPage() {
                 setCreateError(null);
                 setCreateOpen(true);
               }}
-              className="inline-flex h-10 items-center rounded-lg bg-[#003189] px-4 text-sm font-bold text-white shadow-sm transition hover:bg-[#002570]"
+              className="inline-flex h-10 items-center rounded-lg bg-[#0055B8] px-4 text-sm font-bold text-white shadow-sm transition hover:bg-[#00338D]"
             >
               + Nouveau projet
             </button>
@@ -116,7 +116,7 @@ export function ProjectListPage() {
         </div>
         {loading && (
           <div className="flex justify-center py-16">
-            <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-gtv-blue-light border-t-transparent rounded-full animate-spin" />
           </div>
         )}
 
@@ -168,7 +168,7 @@ export function ProjectListPage() {
                       <td className="px-4 py-3 text-right">
                         <Link
                           to={`/projects/${p.id}`}
-                          className="inline-flex h-8 items-center rounded-md border border-slate-200 px-3 text-xs font-bold text-[#003189] transition hover:border-[#003189]/30 hover:bg-[#eef3fb]"
+                          className="inline-flex h-8 items-center rounded-md border border-slate-200 px-3 text-xs font-bold text-[#0055B8] transition hover:border-[#0055B8]/30 hover:bg-[#eef3fb]"
                         >
                           Ouvrir
                         </Link>
@@ -208,7 +208,7 @@ export function ProjectListPage() {
                   </dl>
                   <Link
                     to={`/projects/${project.id}`}
-                    className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-lg border border-slate-200 text-sm font-bold text-[#003189] transition hover:border-[#003189]/30 hover:bg-[#eef3fb]"
+                    className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-lg border border-slate-200 text-sm font-bold text-[#0055B8] transition hover:border-[#0055B8]/30 hover:bg-[#eef3fb]"
                   >
                     Ouvrir le projet
                   </Link>
@@ -346,7 +346,7 @@ export function ProjectListPage() {
                 <button
                   type="submit"
                   disabled={creating || clients.length === 0 || Boolean(clientError)}
-                  className="h-10 rounded-lg bg-[#003189] px-5 text-sm font-bold text-white transition hover:bg-[#002570] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="h-10 rounded-lg bg-[#0055B8] px-5 text-sm font-bold text-white transition hover:bg-[#00338D] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {creating ? 'Création…' : 'Créer le projet'}
                 </button>

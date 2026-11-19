@@ -8,8 +8,9 @@ module.exports = {
     extend: {
       colors: {
         gtv: {
-          blue: '#003189',
-          'blue-dark': '#002070',
+          blue: '#0055B8',
+          'blue-dark': '#00338D',
+          'blue-light': '#3B82F6',
           green: '#009A44',
           yellow: '#FCD116',
         },

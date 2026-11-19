@@ -7,12 +7,12 @@ import type { VisitorTrackedRequest } from '../services/api';
 const STATUS_LABELS: Record<string, { label: string; tone: string; description: string }> = {
   SOUMISE: {
     label: 'Demande transmise',
-    tone: 'bg-blue-50 text-blue-800 border-blue-200',
+    tone: 'bg-gtv-blue-light/10 text-gtv-blue-dark border-gtv-blue-light/30',
     description: 'Votre demande a été enregistrée. L’équipe commerciale GTV pourra l’examiner.',
   },
   ACCUSE_RECU: {
     label: 'Demande reçue',
-    tone: 'bg-blue-50 text-blue-800 border-blue-200',
+    tone: 'bg-gtv-blue-light/10 text-gtv-blue-dark border-gtv-blue-light/30',
     description: 'Votre demande a été prise en compte par l’équipe GTV.',
   },
   EN_QUALIFICATION: {
@@ -88,7 +88,7 @@ export function VisitorRequestTrackingPage() {
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
               Ce lien peut avoir expiré ou être incorrect. Pour toute question, contactez l’équipe commerciale GTV.
             </p>
-            <Link to="/" className="mt-6 inline-flex h-10 items-center rounded-lg bg-[#003189] px-4 text-sm font-bold text-white">
+            <Link to="/" className="mt-6 inline-flex h-10 items-center rounded-lg bg-[#0055B8] px-4 text-sm font-bold text-white">
               Retour à l’accueil
             </Link>
           </div>
@@ -155,7 +155,7 @@ export function VisitorRequestTrackingPage() {
             <p className="mt-5 text-xs leading-5 text-slate-400">
               Ce suivi concerne une demande de devis uniquement. Les tarifs et disponibilités restent à confirmer par GTV; aucun espace n’est réservé.
             </p>
-            <Link to="/" className="mt-6 inline-flex text-sm font-semibold text-[#003189] hover:underline">
+            <Link to="/" className="mt-6 inline-flex text-sm font-semibold text-[#0055B8] hover:underline">
               Retour à l’accueil
             </Link>
           </>

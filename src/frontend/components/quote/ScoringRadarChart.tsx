@@ -104,7 +104,7 @@ export function ScoringRadarChart({ lines }: ScoringRadarChartProps) {
         {/* Polygone de données */}
         <path
           d={toPath(dataPoints)}
-          fill="rgba(0, 49, 137, 0.13)"
+          fill="rgba(0, 85, 184, 0.13)"
           stroke="rgb(0, 49, 137)"
           strokeWidth="2"
         />

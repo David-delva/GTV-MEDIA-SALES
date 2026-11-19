@@ -14,10 +14,17 @@ const VisitorLandingPage = lazy(() => import('./pages/VisitorLandingPage').then(
 const VisitorCampaignPage = lazy(() => import('./pages/VisitorCampaignPage').then((m) => ({ default: m.VisitorCampaignPage })));
 const VisitorRequestTrackingPage = lazy(() => import('./pages/VisitorRequestTrackingPage').then((m) => ({ default: m.VisitorRequestTrackingPage })));
 const VisitorRequestInboxPage = lazy(() => import('./pages/VisitorRequestInboxPage').then((m) => ({ default: m.VisitorRequestInboxPage })));
+const AdminPage = lazy(() => import('./pages/AdminPage').then((m) => ({ default: m.AdminPage })));
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
+}
+
+function RequireAdmin({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, user } = useAuthStore();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return user?.role === 'ADMIN' ? <>{children}</> : <Navigate to="/projects" replace />;
 }
 
 function WorkspaceRoute() {
@@ -45,7 +52,7 @@ function SubmitRoute() {
 
 const PageFallback = () => (
   <div className="min-h-screen flex items-center justify-center">
-    <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+    <div className="w-6 h-6 border-2 border-gtv-blue-light border-t-transparent rounded-full animate-spin" />
   </div>
 );
 
@@ -58,6 +65,7 @@ export function AppRouter() {
           <Route path="/campagne" element={<VisitorCampaignPage />} />
           <Route path="/demande/:token" element={<VisitorRequestTrackingPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/admin" element={<RequireAdmin><AdminPage /></RequireAdmin>} />
           <Route path="/projects" element={<RequireAuth><ProjectListPage /></RequireAuth>} />
           <Route path="/projects/:id" element={<RequireAuth><WorkspaceRoute /></RequireAuth>} />
           <Route path="/projects/:id/submit" element={<RequireAuth><SubmitRoute /></RequireAuth>} />

@@ -26,7 +26,9 @@ export class ProjectRepository {
   async findById(id: string): Promise<ProjectRow | null> {
     const { rows } = await this.db.query(
       `SELECT id, reference, title, client_id, owner_id, status,
-              campaign_start, campaign_end, budget_target, rate_card_id,
+              to_char(campaign_start, 'YYYY-MM-DD') AS campaign_start,
+              to_char(campaign_end, 'YYYY-MM-DD') AS campaign_end,
+              budget_target, rate_card_id,
               scoring_snapshot, created_at, updated_at
        FROM project WHERE id = $1`,
       [id]
@@ -51,7 +53,9 @@ export class ProjectRepository {
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const { rows } = await this.db.query(
       `SELECT id, reference, title, client_id, owner_id, status,
-              campaign_start, campaign_end, budget_target, rate_card_id,
+              to_char(campaign_start, 'YYYY-MM-DD') AS campaign_start,
+              to_char(campaign_end, 'YYYY-MM-DD') AS campaign_end,
+              budget_target, rate_card_id,
               scoring_snapshot, created_at, updated_at
        FROM project ${where}
        ORDER BY created_at DESC`,
@@ -65,8 +69,8 @@ export class ProjectRepository {
     clientId: string;
     ownerId: string;
     rateCardId: string;
-    campaignStart?: Date;
-    campaignEnd?: Date;
+    campaignStart?: string;
+    campaignEnd?: string;
     budgetTarget?: number;
   }): Promise<string> {
     // Génération de la référence lisible : PRJ-YYYY-XXXX
@@ -99,6 +103,15 @@ export class ProjectRepository {
       [id, JSON.stringify(scoringSnapshot)]
     );
   }
+
+  async updateStatus(id: string, currentStatus: string, nextStatus: string): Promise<boolean> {
+    const { rowCount } = await this.db.query(
+      `UPDATE project SET status = $3
+       WHERE id = $1 AND status = $2`,
+      [id, currentStatus, nextStatus]
+    );
+    return rowCount === 1;
+  }
 }
 
 function mapProject(row: Record<string, unknown>): ProjectRow {
@@ -109,8 +122,8 @@ function mapProject(row: Record<string, unknown>): ProjectRow {
     clientId:        row.client_id as string,
     ownerId:         row.owner_id as string,
     status:          row.status as string,
-    campaignStart:   row.campaign_start ? String(row.campaign_start).slice(0, 10) : null,
-    campaignEnd:     row.campaign_end   ? String(row.campaign_end).slice(0, 10)   : null,
+    campaignStart:   row.campaign_start as string | null,
+    campaignEnd:     row.campaign_end as string | null,
     budgetTarget:    row.budget_target  ? Number(row.budget_target) : null,
     rateCardId:      row.rate_card_id as string,
     scoringSnapshot: row.scoring_snapshot ?? null,

@@ -16,6 +16,8 @@ import { AudienceController } from '../controllers/AudienceController';
 import { AuthController } from '../controllers/AuthController';
 import { PublicVisitorController } from '../controllers/PublicVisitorController';
 import { PublicVisitorRepository } from '../repositories/PublicVisitorRepository';
+import { AdminUserController } from '../controllers/AdminUserController';
+import { AdminUserRepository } from '../repositories/AdminUserRepository';
 
 export function buildRouter(db: Pool): Router {
   const router = Router();
@@ -32,9 +34,19 @@ export function buildRouter(db: Pool): Router {
   const projectCtrl  = new ProjectController(projectRepo, rateCardRepo);
   const audienceCtrl = new AudienceController(audienceRepo);
   const visitorCtrl = new PublicVisitorController(new PublicVisitorRepository(db));
+  const adminUserCtrl = new AdminUserController(new AdminUserRepository(db));
 
   // ── Auth (public) ────────────────────────────────────────────────────────────
   router.post('/auth/login', authCtrl.login);
+
+  // ── Administration ──────────────────────────────────────────────────────────
+  router.get('/admin/users', authenticate(db), authorize('ADMIN'), adminUserCtrl.list);
+  router.post('/admin/users', authenticate(db), authorize('ADMIN'), adminUserCtrl.create);
+  router.patch('/admin/users/:id/active', authenticate(db), authorize('ADMIN'), adminUserCtrl.setActive);
+  router.get('/admin/rate-cards', authenticate(db), authorize('ADMIN'), rateCardCtrl.listAll);
+  router.post('/admin/rate-cards/:id/lines', authenticate(db), authorize('ADMIN'), rateCardCtrl.addLine);
+  router.patch('/admin/rate-cards/:id/lines/:lineId', authenticate(db), authorize('ADMIN'), rateCardCtrl.updateLine);
+  router.delete('/admin/rate-cards/:id/lines/:lineId', authenticate(db), authorize('ADMIN'), rateCardCtrl.deleteLine);
 
   // ── Espace visiteur (public, sans compte obligatoire) ────────────────────────
   router.get('/public/catalog', visitorCtrl.catalog);
@@ -45,19 +57,19 @@ export function buildRouter(db: Pool): Router {
   // Boîte de réception des demandes publiques pour l'équipe commerciale
   router.get(
     '/visitor/quote-requests',
-    authenticate,
+    authenticate(db),
     authorize('COMMERCIAL', 'ADMIN'),
     visitorCtrl.inbox
   );
   router.patch(
     '/visitor/quote-requests/:reference/status',
-    authenticate,
+    authenticate(db),
     authorize('COMMERCIAL', 'ADMIN'),
     visitorCtrl.updateStatus
   );
 
   // ── Formats (lecture seule, tous rôles) ──────────────────────────────────────
-  router.get('/formats', authenticate, async (_req, res, next) => {
+  router.get('/formats', authenticate(db), async (_req, res, next) => {
     try {
       const { rows } = await db.query(
         `SELECT id, code, label, category, duration_sec FROM format WHERE is_active = true ORDER BY category, label`
@@ -70,19 +82,19 @@ export function buildRouter(db: Pool): Router {
   });
 
   // ── Rate Cards ───────────────────────────────────────────────────────────────
-  router.get('/rate-cards/active',         authenticate, rateCardCtrl.getActive);
-  router.post('/rate-cards',               authenticate, authorize('ADMIN'), rateCardCtrl.create);
-  router.patch('/rate-cards/:id/activate', authenticate, authorize('ADMIN'), rateCardCtrl.activate);
+  router.get('/rate-cards/active',         authenticate(db), rateCardCtrl.getActive);
+  router.post('/rate-cards',               authenticate(db), authorize('ADMIN'), rateCardCtrl.create);
+  router.patch('/rate-cards/:id/activate', authenticate(db), authorize('ADMIN'), rateCardCtrl.activate);
 
   // ── Audience ─────────────────────────────────────────────────────────────────
-  router.get('/audience/segments/all', authenticate, audienceCtrl.allSegments);
+  router.get('/audience/segments/all', authenticate(db), audienceCtrl.allSegments);
 
   // ── Scoring ──────────────────────────────────────────────────────────────────
-  router.post('/scoring',       authenticate, authorize('COMMERCIAL', 'ADMIN'), scoringCtrl.score);
-  router.post('/scoring/batch', authenticate, authorize('COMMERCIAL', 'ADMIN'), scoringCtrl.scoreBatch);
+  router.post('/scoring',       authenticate(db), authorize('COMMERCIAL', 'ADMIN'), scoringCtrl.score);
+  router.post('/scoring/batch', authenticate(db), authorize('COMMERCIAL', 'ADMIN'), scoringCtrl.scoreBatch);
 
   // ── Clients ──────────────────────────────────────────────────────────────────
-  router.get('/clients', authenticate, async (_req, res, next) => {
+  router.get('/clients', authenticate(db), async (_req, res, next) => {
     try {
       const { rows } = await db.query(
         `SELECT id, name, sector FROM client ORDER BY name`
@@ -101,10 +113,11 @@ export function buildRouter(db: Pool): Router {
   });
 
   // ── Projects ─────────────────────────────────────────────────────────────────
-  router.get('/projects',             authenticate, projectCtrl.list);
-  router.get('/projects/:id',         authenticate, projectCtrl.getOne);
-  router.post('/projects',            authenticate, authorize('COMMERCIAL', 'ADMIN'), projectCtrl.create);
-  router.post('/projects/:id/submit', authenticate, authorize('COMMERCIAL', 'ADMIN'), projectCtrl.submit);
+  router.get('/projects',             authenticate(db), projectCtrl.list);
+  router.get('/projects/:id',         authenticate(db), projectCtrl.getOne);
+  router.post('/projects',            authenticate(db), authorize('COMMERCIAL', 'ADMIN'), projectCtrl.create);
+  router.post('/projects/:id/submit', authenticate(db), authorize('COMMERCIAL', 'ADMIN'), projectCtrl.submit);
+  router.patch('/projects/:id/status', authenticate(db), authorize('ADMIN'), projectCtrl.updateStatus);
 
   return router;
 }

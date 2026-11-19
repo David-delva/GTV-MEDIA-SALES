@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { VisitorShell } from '../components/ui/AppShell';
 import { visitorApi, type VisitorCatalogDto, type VisitorCatalogLine } from '../services/api';
 import { catalogChannelName, catalogDaypartName, catalogProductName } from '../utils/catalogDisplay';
+import { mediaImageForCategory } from '../utils/mediaAssets';
 
 const STEPS = [
   {
@@ -78,7 +79,7 @@ export function VisitorLandingPage() {
   return (
     <VisitorShell>
       <main>
-        <section className="relative overflow-hidden bg-[#071b3a] text-white">
+        <section className="relative overflow-hidden bg-[#00338D] text-white">
           <div className="pointer-events-none absolute -right-36 -top-40 h-[560px] w-[560px] rounded-full border-[72px] border-white/[0.04]" />
           <div className="pointer-events-none absolute right-0 top-24 h-2.5 w-28 rounded-l-full bg-[#FCD116]" />
           <div className="pointer-events-none absolute right-0 top-32 h-2.5 w-40 rounded-l-full bg-[#009A44]" />
@@ -90,13 +91,13 @@ export function VisitorLandingPage() {
               <h1 className="text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl">
                 Choisissez vos espaces publicitaires sur les chaînes GTV.
               </h1>
-              <p className="mt-5 max-w-xl text-base leading-7 text-blue-100/80">
+              <p className="mt-5 max-w-xl text-base leading-7 text-white/80">
                 Parcourez les formats, comparez les tarifs indicatifs et composez votre sélection. L’équipe commerciale de Gabon Télévisions vous accompagne jusqu’au devis adapté à votre campagne.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link
                   to="/campagne"
-                  className="inline-flex h-12 items-center justify-center rounded-lg bg-[#FCD116] px-6 text-sm font-bold text-[#071b3a] shadow-[0_8px_18px_rgba(0,0,0,0.16)] transition hover:bg-yellow-300"
+                  className="inline-flex h-12 items-center justify-center rounded-lg bg-[#FCD116] px-6 text-sm font-bold text-[#00338D] shadow-[0_8px_18px_rgba(0,0,0,0.16)] transition hover:bg-yellow-300"
                 >
                   Découvrir les offres
                 </Link>
@@ -107,13 +108,24 @@ export function VisitorLandingPage() {
                   Voir les formats
                 </a>
               </div>
-              <p className="mt-4 text-xs text-blue-100/60">
+              <p className="mt-4 text-xs text-white/60">
                 Sans compte · Demande de devis non contractuelle
               </p>
             </div>
 
             <div className="relative mx-auto w-full max-w-md">
               <div className="rounded-2xl border border-white/15 bg-white p-5 text-slate-900 shadow-[0_24px_70px_rgba(0,0,0,0.24)] sm:p-7">
+                <div className="relative mb-5 h-40 overflow-hidden rounded-xl sm:h-48">
+                  <img
+                    src="/images/broadcast-control-room.jpg"
+                    alt="Régie de production audiovisuelle avec techniciens et écrans."
+                    className="h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#00338D]/75 via-[#00338D]/10 to-transparent" />
+                  <span className="absolute bottom-3 left-3 rounded-full border border-white/25 bg-[#00338D]/65 px-3 py-1 text-[10px] font-semibold text-white backdrop-blur">
+                    Image d’illustration · production en direct
+                  </span>
+                </div>
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#009A44]">Votre espace annonceur</p>
@@ -126,7 +138,7 @@ export function VisitorLandingPage() {
                 <div className="mt-6 space-y-3">
                   {STEPS.map((step) => (
                     <div key={step.number} className="flex gap-4 rounded-xl border border-slate-200 bg-[#f8fafc] p-4">
-                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[#eaf0fb] text-[11px] font-bold text-[#003189]">{step.number}</span>
+                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[#eaf0fb] text-[11px] font-bold text-[#0055B8]">{step.number}</span>
                       <div>
                         <p className="text-sm font-bold text-slate-800">{step.title}</p>
                         <p className="mt-1 text-xs leading-5 text-slate-500">{step.body}</p>
@@ -134,8 +146,8 @@ export function VisitorLandingPage() {
                     </div>
                   ))}
                 </div>
-                <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#003189]">
+                <div className="mt-5 rounded-xl border border-gtv-blue-light/20 bg-gtv-blue-light/10 px-4 py-3">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#0055B8]">
                     Catalogue publicitaire
                   </p>
                   {catalogLoading ? (
@@ -167,7 +179,7 @@ export function VisitorLandingPage() {
                 Comparez les offres du catalogue et ajoutez vos préférées à une demande de devis, sans paiement en ligne.
               </p>
             </div>
-            <Link to="/campagne" className="inline-flex h-11 shrink-0 items-center justify-center rounded-lg bg-[#003189] px-5 text-sm font-bold text-white transition hover:bg-[#002570]">
+            <Link to="/campagne" className="inline-flex h-11 shrink-0 items-center justify-center rounded-lg bg-[#0055B8] px-5 text-sm font-bold text-white transition hover:bg-[#00338D]">
               Composer ma sélection
             </Link>
           </div>
@@ -193,13 +205,19 @@ export function VisitorLandingPage() {
               )}
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {categories.map((category) => (
-                  <article key={category.category} className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:border-[#003189]/20 hover:shadow-[0_16px_34px_rgba(15,23,42,0.08)]">
-                    <div className={`relative flex h-28 items-end justify-between overflow-hidden bg-gradient-to-br p-5 text-white ${category.category === 'SPOT' ? 'from-[#0b2c66] via-[#17458d] to-[#386bb3]' : category.category === 'PARRAINAGE' ? 'from-[#075b3a] via-[#0d8051] to-[#45a678]' : category.category === 'HABILLAGE' ? 'from-[#7a4a06] via-[#b27a12] to-[#e0b335]' : 'from-slate-700 via-slate-600 to-slate-500'}`}>
-                      <div className="absolute -right-4 -top-10 h-36 w-36 rounded-full border-[18px] border-white/10" />
+                  <article key={category.category} className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:border-[#0055B8]/20 hover:shadow-[0_16px_34px_rgba(15,23,42,0.08)]">
+                    <div className="relative flex h-36 items-end justify-between overflow-hidden bg-[#00338D] p-5 text-white">
+                      <img
+                        src={mediaImageForCategory(category.category).src}
+                        alt={mediaImageForCategory(category.category).alt}
+                        loading="lazy"
+                        className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-br from-[#00338D]/80 via-[#0055B8]/35 to-[#00338D]/70" />
                       <div className="absolute right-8 top-5 h-2 w-16 rounded-full bg-[#FCD116]" />
                       <div className="absolute right-8 top-9 h-2 w-24 rounded-full bg-[#009A44]" />
-                      <span className="relative text-sm font-bold">{category.label}</span>
-                      <span className="relative rounded-full bg-black/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider backdrop-blur">GTV · MEDIA</span>
+                      <span className="relative z-10 text-sm font-bold">{category.label}</span>
+                      <span className="relative z-10 rounded-full bg-black/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider backdrop-blur">GTV · MEDIA</span>
                     </div>
                     <div className="flex flex-1 flex-col p-5">
                       <div className="flex items-start justify-between gap-3">
@@ -207,7 +225,7 @@ export function VisitorLandingPage() {
                           <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#009A44]">Espace média</p>
                           <h3 className="mt-1 text-lg font-bold text-slate-900">{category.label}</h3>
                         </div>
-                        <span className="rounded-full bg-[#eef3fb] px-2.5 py-1 text-[11px] font-bold text-[#003189]">
+                        <span className="rounded-full bg-[#eef3fb] px-2.5 py-1 text-[11px] font-bold text-[#0055B8]">
                           {category.optionCount} option{category.optionCount > 1 ? 's' : ''}
                         </span>
                       </div>
@@ -228,12 +246,12 @@ export function VisitorLandingPage() {
                       <div className="mt-5 flex items-end justify-between gap-3 border-t border-slate-100 pt-4">
                         <div>
                           <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">À partir de</p>
-                          <p className="mt-0.5 text-lg font-extrabold text-[#003189]">
+                          <p className="mt-0.5 text-lg font-extrabold text-[#0055B8]">
                             {new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(category.startingPrice)} {category.currency}
                           </p>
                           <p className="text-[11px] text-slate-400">par diffusion · tarif indicatif</p>
                         </div>
-                        <Link to="/campagne" className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[#003189] px-3 text-xs font-bold text-white transition hover:bg-[#002570]">
+                        <Link to="/campagne" className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[#0055B8] px-3 text-xs font-bold text-white transition hover:bg-[#00338D]">
                           Découvrir
                         </Link>
                       </div>
@@ -257,18 +275,18 @@ export function VisitorLandingPage() {
             <div className="grid gap-4 md:grid-cols-3">
               {STEPS.map((step) => (
                 <article key={step.number} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef3fb] text-xs font-bold text-[#003189]">{step.number}</span>
+                  <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef3fb] text-xs font-bold text-[#0055B8]">{step.number}</span>
                   <h3 className="mt-4 text-base font-bold text-slate-800">{step.title}</h3>
                   <p className="mt-2 text-sm leading-6 text-slate-500">{step.body}</p>
                 </article>
               ))}
             </div>
-            <div className="mt-8 flex flex-col gap-4 rounded-2xl border border-blue-100 bg-blue-50/70 p-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <div className="mt-8 flex flex-col gap-4 rounded-2xl border border-gtv-blue-light/20 bg-gtv-blue-light/10 p-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
               <div>
-                <p className="font-bold text-blue-950">Prêt à préparer votre campagne ?</p>
-                <p className="mt-1 text-sm leading-5 text-blue-900/75">Aucun compte requis. Votre demande ne vaut pas réservation ni commande ferme.</p>
+                <p className="font-bold text-gtv-blue-dark">Prêt à préparer votre campagne ?</p>
+                <p className="mt-1 text-sm leading-5 text-gtv-blue-dark/75">Aucun compte requis. Votre demande ne vaut pas réservation ni commande ferme.</p>
               </div>
-              <Link to="/campagne" className="inline-flex h-11 shrink-0 items-center justify-center rounded-lg bg-[#003189] px-5 text-sm font-bold text-white transition hover:bg-[#002570]">
+              <Link to="/campagne" className="inline-flex h-11 shrink-0 items-center justify-center rounded-lg bg-[#0055B8] px-5 text-sm font-bold text-white transition hover:bg-[#00338D]">
                 Commencer
               </Link>
             </div>

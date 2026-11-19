@@ -24,8 +24,8 @@ export class AuthController {
 
       const { rows } = await this.db.query(
         `SELECT id, email, name, role, password_hash
-         FROM "user" WHERE email = $1 LIMIT 1`,
-        [email]
+         FROM "user" WHERE lower(email) = $1 AND is_active = TRUE LIMIT 1`,
+        [email.trim().toLowerCase()]
       );
 
       const user = rows[0];

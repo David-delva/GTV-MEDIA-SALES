@@ -17,6 +17,14 @@ const STATUSES = [
 ] as const;
 
 export function VisitorRequestInboxPage() {
+  return (
+    <AppShell eyebrow="Espace commercial" title="Demandes visiteurs">
+      <VisitorRequestInboxContent />
+    </AppShell>
+  );
+}
+
+export function VisitorRequestInboxContent() {
   const [requests, setRequests] = useState<VisitorInboxItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
@@ -53,8 +61,7 @@ export function VisitorRequestInboxPage() {
   };
 
   return (
-    <AppShell eyebrow="Espace commercial" title="Demandes visiteurs">
-      <main className="mx-auto max-w-6xl px-5 py-7 lg:px-8">
+    <main className="mx-auto max-w-6xl px-5 py-7 lg:px-8">
         <div className="mb-5 flex items-center justify-between gap-4">
           <p className="text-sm text-slate-500">Demandes de devis envoyées depuis l’espace public.</p>
           <button type="button" onClick={() => void loadRequests()} disabled={loading} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50">
@@ -81,9 +88,9 @@ export function VisitorRequestInboxPage() {
                 <article key={item.reference} className="surface-card p-5">
                   <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
                     <div className="min-w-0">
-                      <p className="font-mono text-xs font-bold text-[#003189]">{item.reference}</p>
+                      <p className="font-mono text-xs font-bold text-[#0055B8]">{item.reference}</p>
                       <h2 className="mt-1 text-base font-bold text-slate-800">{item.companyName}</h2>
-                      <p className="mt-1 break-words text-sm text-slate-500">{item.fullName} · <a className="break-all text-[#003189] hover:underline" href={`mailto:${encodeURIComponent(item.email)}`}>{item.email}</a></p>
+                      <p className="mt-1 break-words text-sm text-slate-500">{item.fullName} · <a className="break-all text-[#0055B8] hover:underline" href={`mailto:${encodeURIComponent(item.email)}`}>{item.email}</a></p>
                       <p className="mt-2 text-xs text-slate-400">
                         {item.objective ?? item.brief.objective}
                         {item.brief.targetSegment ? ` · ${item.brief.targetSegment}` : ''}
@@ -124,8 +131,7 @@ export function VisitorRequestInboxPage() {
             })}
           </div>
         )}
-      </main>
-    </AppShell>
+    </main>
   );
 }
 

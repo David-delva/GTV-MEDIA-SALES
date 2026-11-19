@@ -4,6 +4,7 @@ import { ScoreBadge } from '../components/ui/ScoreBadge';
 import { VisitorShell } from '../components/ui/AppShell';
 import { visitorApi } from '../services/api';
 import { catalogChannelName, catalogDaypartName, catalogProductName } from '../utils/catalogDisplay';
+import { mediaImageForCategory } from '../utils/mediaAssets';
 import type {
   ScoredOptionDto,
   VisitorCatalogDto,
@@ -236,10 +237,10 @@ export function VisitorCampaignPage() {
   return (
     <VisitorShell>
       <main className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
-        <Link to="/" className="text-xs font-semibold text-slate-400 transition hover:text-[#003189]">
+        <Link to="/" className="text-xs font-semibold text-slate-400 transition hover:text-[#0055B8]">
           ← Accueil
         </Link>
-        <section className="relative mt-5 overflow-hidden rounded-2xl bg-[#071b3a] px-6 py-7 text-white shadow-[0_20px_50px_rgba(7,27,58,0.16)] sm:px-9 sm:py-9">
+        <section className="relative mt-5 overflow-hidden rounded-2xl bg-[#00338D] px-6 py-7 text-white shadow-[0_20px_50px_rgba(7,27,58,0.16)] sm:px-9 sm:py-9">
           <div className="pointer-events-none absolute -right-14 -top-20 h-64 w-64 rounded-full border-[34px] border-white/[0.05]" />
           <div className="pointer-events-none absolute right-0 top-10 h-2 w-24 rounded-l-full bg-[#FCD116]" />
           <div className="pointer-events-none absolute right-0 top-16 h-2 w-36 rounded-l-full bg-[#009A44]" />
@@ -248,7 +249,7 @@ export function VisitorCampaignPage() {
             <h1 className="mt-3 text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
               Construisons votre prochaine campagne.
             </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100/80 sm:text-base">
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-white/80 sm:text-base">
               Découvrez les formats proposés dans notre catalogue, composez une première sélection et partagez votre brief. Un commercial GTV reviendra vers vous pour confirmer les options et préparer un devis.
             </p>
             <div className="mt-6 flex flex-wrap gap-2 text-xs font-semibold">
@@ -267,8 +268,8 @@ export function VisitorCampaignPage() {
           <div className="grid grid-cols-4 gap-2">
             {['Découvrir', 'Brief', 'Récapitulatif', 'Coordonnées'].map((label, index) => (
               <div key={label}>
-                <div className={`h-1.5 rounded-full ${index + 1 <= step ? 'bg-[#003189]' : 'bg-slate-200'}`} />
-                <p className={`mt-2 hidden text-[11px] font-semibold sm:block ${index + 1 === step ? 'text-[#003189]' : 'text-slate-400'}`}>
+                <div className={`h-1.5 rounded-full ${index + 1 <= step ? 'bg-[#0055B8]' : 'bg-slate-200'}`} />
+                <p className={`mt-2 hidden text-[11px] font-semibold sm:block ${index + 1 === step ? 'text-[#0055B8]' : 'text-slate-400'}`}>
                   {label}
                 </p>
               </div>
@@ -362,7 +363,7 @@ export function VisitorCampaignPage() {
                 type="button"
                 disabled={loadingCatalog || !brief.objective || scoring}
                 onClick={runScoring}
-                className="h-11 rounded-lg bg-[#003189] px-5 text-sm font-bold text-white transition hover:bg-[#002570] disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-11 rounded-lg bg-[#0055B8] px-5 text-sm font-bold text-white transition hover:bg-[#00338D] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {scoring ? 'Analyse de votre sélection…' : 'Voir le récapitulatif'}
               </button>
@@ -397,7 +398,7 @@ export function VisitorCampaignPage() {
                 <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
                   La grille tarifaire n’est pas disponible pour le moment. L’équipe GTV pourra vous présenter les options adaptées à votre projet.
                 </div>
-                <button type="button" onClick={() => setStep(2)} className="mt-5 h-11 rounded-lg bg-[#003189] px-5 text-sm font-bold text-white transition hover:bg-[#002570]">
+                <button type="button" onClick={() => setStep(2)} className="mt-5 h-11 rounded-lg bg-[#0055B8] px-5 text-sm font-bold text-white transition hover:bg-[#00338D]">
                   Continuer sans sélection
                 </button>
               </div>
@@ -432,7 +433,7 @@ export function VisitorCampaignPage() {
                           type="button"
                           aria-pressed={activeCategory === category}
                           onClick={() => setActiveCategory(category)}
-                          className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition ${activeCategory === category ? 'bg-[#003189] text-white shadow-sm' : 'border border-slate-200 bg-white text-slate-600 hover:border-[#003189]/30 hover:text-[#003189]'}`}
+                          className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition ${activeCategory === category ? 'bg-[#0055B8] text-white shadow-sm' : 'border border-slate-200 bg-white text-slate-600 hover:border-[#0055B8]/30 hover:text-[#0055B8]'}`}
                         >
                           {label}
                         </button>
@@ -442,7 +443,7 @@ export function VisitorCampaignPage() {
                   {visibleLines.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-5 py-10 text-center">
                       <p className="font-semibold text-slate-700">Aucune offre ne correspond à votre recherche.</p>
-                      <button type="button" onClick={() => { setProductSearch(''); setActiveCategory('TOUT'); }} className="mt-2 text-sm font-bold text-[#003189]">
+                      <button type="button" onClick={() => { setProductSearch(''); setActiveCategory('TOUT'); }} className="mt-2 text-sm font-bold text-[#0055B8]">
                         Effacer les filtres
                       </button>
                     </div>
@@ -451,23 +452,18 @@ export function VisitorCampaignPage() {
                       {visibleLines.map((line) => {
                         const key = optionKey(line);
                         const quantity = selected[key] ?? 0;
-                        const artStyle = line.category === 'SPOT'
-                          ? 'from-[#0b2c66] via-[#17458d] to-[#386bb3]'
-                          : line.category === 'PARRAINAGE'
-                            ? 'from-[#075b3a] via-[#0d8051] to-[#45a678]'
-                            : line.category === 'HABILLAGE'
-                              ? 'from-[#7a4a06] via-[#b27a12] to-[#e0b335]'
-                              : 'from-slate-700 via-slate-600 to-slate-500';
+                        const categoryImage = mediaImageForCategory(line.category);
                         return (
-                          <article key={key} className={`group overflow-hidden rounded-2xl border bg-white transition ${quantity ? 'border-[#003189]/40 shadow-[0_12px_30px_rgba(0,49,137,0.12)]' : 'border-slate-200 shadow-[0_8px_24px_rgba(15,23,42,0.04)] hover:-translate-y-0.5 hover:shadow-lg'}`}>
-                            <div className={`relative flex h-28 items-end justify-between overflow-hidden bg-gradient-to-br ${artStyle} p-4 text-white`}>
-                              <div className="absolute -right-4 -top-10 h-36 w-36 rounded-full border-[18px] border-white/10" />
+                          <article key={key} className={`group overflow-hidden rounded-2xl border bg-white transition ${quantity ? 'border-[#0055B8]/40 shadow-[0_12px_30px_rgba(0,85,184,0.12)]' : 'border-slate-200 shadow-[0_8px_24px_rgba(15,23,42,0.04)] hover:-translate-y-0.5 hover:shadow-lg'}`}>
+                            <div className="relative flex h-28 items-end justify-between overflow-hidden bg-[#00338D] p-4 text-white">
+                              <img src={categoryImage.src} alt="" aria-hidden="true" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                              <div className="absolute inset-0 bg-gradient-to-br from-[#00338D]/80 via-[#0055B8]/30 to-[#00338D]/65" />
                               <div className="absolute right-8 top-5 h-2 w-16 rounded-full bg-[#FCD116]" />
                               <div className="absolute right-8 top-9 h-2 w-24 rounded-full bg-[#009A44]" />
-                              <span className="relative rounded-full bg-black/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider backdrop-blur">
+                              <span className="relative z-10 rounded-full bg-black/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider backdrop-blur">
                                 {CATEGORY_LABELS[line.category] ?? line.category}
                               </span>
-                              <span className="relative text-xs font-semibold text-white/75">GTV · MEDIA</span>
+                              <span className="relative z-10 text-xs font-semibold text-white/75">GTV · MEDIA</span>
                             </div>
                             <div className="p-4">
                               <div className="flex min-h-[72px] items-start justify-between gap-3">
@@ -483,14 +479,14 @@ export function VisitorCampaignPage() {
                               <div className="mt-3 flex items-end justify-between gap-2 border-t border-slate-100 pt-3">
                                 <div>
                                   <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Tarif indicatif</p>
-                                  <p className="mt-0.5 text-lg font-extrabold tracking-tight text-[#003189]">{formatMoney(line.grossPrice, line.currency)}</p>
+                                  <p className="mt-0.5 text-lg font-extrabold tracking-tight text-[#0055B8]">{formatMoney(line.grossPrice, line.currency)}</p>
                                   <p className="text-[11px] text-slate-400">par diffusion</p>
                                 </div>
                                 <button
                                   type="button"
                                   aria-pressed={quantity > 0}
                                   onClick={() => updateQuantity(line, quantity ? '0' : '1')}
-                                  className={`min-h-10 rounded-lg px-3 text-xs font-bold transition ${quantity ? 'border border-slate-200 bg-white text-slate-600 hover:border-red-200 hover:text-red-600' : 'bg-[#003189] text-white hover:bg-[#002570]'}`}
+                                  className={`min-h-10 rounded-lg px-3 text-xs font-bold transition ${quantity ? 'border border-slate-200 bg-white text-slate-600 hover:border-red-200 hover:text-red-600' : 'bg-[#0055B8] text-white hover:bg-[#00338D]'}`}
                                 >
                                   {quantity ? 'Retirer' : 'Ajouter au panier'}
                                 </button>
@@ -526,7 +522,7 @@ export function VisitorCampaignPage() {
                       <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#009A44]">Votre sélection</p>
                       <h3 className="mt-1 text-lg font-bold text-slate-900">Panier de devis</h3>
                     </div>
-                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#eef3fb] text-sm font-extrabold text-[#003189]">{selectedLines.length}</span>
+                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#eef3fb] text-sm font-extrabold text-[#0055B8]">{selectedLines.length}</span>
                   </div>
 
                   {selectedLines.length === 0 ? (
@@ -560,7 +556,7 @@ export function VisitorCampaignPage() {
                     type="button"
                     disabled={loadingCatalog}
                     onClick={() => setStep(2)}
-                    className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#003189] px-4 text-sm font-bold text-white transition hover:bg-[#002570] disabled:cursor-wait disabled:opacity-50"
+                    className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#0055B8] px-4 text-sm font-bold text-white transition hover:bg-[#00338D] disabled:cursor-wait disabled:opacity-50"
                   >
                     Continuer vers mon brief <span aria-hidden="true">→</span>
                   </button>
@@ -580,7 +576,7 @@ export function VisitorCampaignPage() {
             />
 
             {selectedLines.length === 0 ? (
-              <div className="mt-6 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-900">
+              <div className="mt-6 rounded-xl border border-gtv-blue-light/20 bg-gtv-blue-light/10 p-4 text-sm leading-6 text-gtv-blue-dark">
                 Vous n’avez sélectionné aucun format. Vous pouvez tout de même envoyer votre brief; un commercial GTV pourra vous orienter.
               </div>
             ) : (
@@ -637,7 +633,7 @@ export function VisitorCampaignPage() {
               <button
                 type="button"
                 onClick={() => setStep(4)}
-                className="h-11 rounded-lg bg-[#003189] px-5 text-sm font-bold text-white transition hover:bg-[#002570]"
+                className="h-11 rounded-lg bg-[#0055B8] px-5 text-sm font-bold text-white transition hover:bg-[#00338D]"
               >
                 Continuer vers mes coordonnées
               </button>
@@ -682,7 +678,7 @@ export function VisitorCampaignPage() {
                 type="checkbox"
                 checked={contact.consentMarketing}
                 onChange={(event) => setContact({ ...contact, consentMarketing: event.target.checked })}
-                className="mt-0.5 h-4 w-4 accent-[#003189]"
+                className="mt-0.5 h-4 w-4 accent-[#0055B8]"
               />
               <span>J’accepte de recevoir des informations et actualités commerciales de Gabon Télévisions. Cette autorisation est facultative.</span>
             </label>
@@ -707,7 +703,7 @@ export function VisitorCampaignPage() {
               <button type="button" onClick={() => setStep(3)} className="h-11 rounded-lg border border-slate-200 px-5 text-sm font-semibold text-slate-600 hover:bg-slate-50">
                 Retour au récapitulatif
               </button>
-              <button type="submit" disabled={submitting} className="h-11 rounded-lg bg-[#003189] px-5 text-sm font-bold text-white transition hover:bg-[#002570] disabled:cursor-wait disabled:opacity-60">
+              <button type="submit" disabled={submitting} className="h-11 rounded-lg bg-[#0055B8] px-5 text-sm font-bold text-white transition hover:bg-[#00338D] disabled:cursor-wait disabled:opacity-60">
                 {submitting ? 'Envoi en cours…' : 'Envoyer ma demande de devis'}
               </button>
             </div>
@@ -721,7 +717,7 @@ export function VisitorCampaignPage() {
 function SectionHeading({ number, title, description }: { number: string; title: string; description: string }) {
   return (
     <div className="flex gap-4">
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#eef3fb] text-xs font-bold text-[#003189]">{number}</span>
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#eef3fb] text-xs font-bold text-[#0055B8]">{number}</span>
       <div>
         <h2 className="text-lg font-bold text-slate-800">{title}</h2>
         <p className="mt-1 text-sm leading-5 text-slate-500">{description}</p>
