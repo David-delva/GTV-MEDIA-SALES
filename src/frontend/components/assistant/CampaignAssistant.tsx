@@ -92,11 +92,11 @@ export function CampaignAssistant({ options, isLoading, targetSegment }: Campaig
             key={key}
             className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 transition hover:border-slate-300 hover:shadow-[0_8px_24px_rgba(15,23,42,0.05)]"
           >
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
               <ScoreBadge scoring={opt.scoring} />
-              <div>
-                <div className="text-sm font-bold text-slate-800">{opt.formatLabel}</div>
-                <div className="mt-0.5 text-[11px] text-slate-500">
+              <div className="min-w-0">
+                <div className="break-words text-sm font-bold text-slate-800">{opt.formatLabel}</div>
+                <div className="mt-0.5 break-words text-[11px] text-slate-500">
                   {opt.option.channel} · {opt.option.daypart} · {fmt(opt.grossPriceUnit)} XAF/passage
                 </div>
                 {/* Transparence algorithmique : affichage du détail des critères */}

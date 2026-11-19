@@ -95,7 +95,7 @@ export function ProjectListPage() {
   return (
     <AppShell eyebrow="Espace commercial" title="Mes projets">
       <main className="mx-auto max-w-6xl px-5 py-7 lg:px-8">
-        <div className="mb-6 flex items-center justify-between gap-4">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <p className="text-sm text-slate-500">
             {projects.length > 0
               ? `${projects.length} projet${projects.length > 1 ? 's' : ''} dans votre portefeuille`
@@ -135,7 +135,7 @@ export function ProjectListPage() {
         )}
 
         {!loading && projects.length > 0 && (
-          <div className="surface-card overflow-x-auto">
+          <div className="surface-card hidden overflow-x-auto lg:block">
             <table className="w-full text-sm">
               <thead className="bg-slate-50/80 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
                 <tr>
@@ -180,6 +180,44 @@ export function ProjectListPage() {
             </table>
           </div>
         )}
+
+        {!loading && !error && projects.length > 0 && (
+          <div className="space-y-3 lg:hidden">
+            {projects.map((project) => {
+              const statusMeta = STATUS_LABELS[project.status] ?? { label: project.status, color: 'bg-gray-100 text-gray-600' };
+              return (
+                <article key={project.id} className="surface-card min-w-0 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-mono text-[11px] text-slate-400">{project.reference}</p>
+                      <h2 className="mt-1 break-words font-bold text-slate-900">{project.title}</h2>
+                    </div>
+                    <span className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-medium ${statusMeta.color}`}>
+                      {statusMeta.label}
+                    </span>
+                  </div>
+                  <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-100 pt-3">
+                    <div>
+                      <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Budget cible</dt>
+                      <dd className="mt-1 text-sm font-semibold text-slate-700">{project.budgetTarget ? `${fmt(project.budgetTarget)} XAF` : '—'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Début de campagne</dt>
+                      <dd className="mt-1 text-sm text-slate-700">{project.campaignStart ?? '—'}</dd>
+                    </div>
+                  </dl>
+                  <Link
+                    to={`/projects/${project.id}`}
+                    className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-lg border border-slate-200 text-sm font-bold text-[#003189] transition hover:border-[#003189]/30 hover:bg-[#eef3fb]"
+                  >
+                    Ouvrir le projet
+                  </Link>
+                </article>
+              );
+            })}
+          </div>
+        )}
+
       </main>
 
       {createOpen && (
@@ -193,9 +231,9 @@ export function ProjectListPage() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="create-project-title"
-            className="w-full max-w-xl rounded-2xl bg-white shadow-2xl"
+            className="max-h-[calc(100vh-2rem)] w-full max-w-xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
           >
-            <header className="flex items-start justify-between border-b border-slate-100 px-6 py-5">
+            <header className="flex items-start justify-between border-b border-slate-100 px-4 py-5 sm:px-6">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#009A44]">Espace commercial</p>
                 <h2 id="create-project-title" className="mt-1 text-xl font-bold text-slate-900">Nouveau projet</h2>
@@ -212,7 +250,7 @@ export function ProjectListPage() {
               </button>
             </header>
 
-            <form onSubmit={handleCreate} className="space-y-4 px-6 py-5">
+            <form onSubmit={handleCreate} className="space-y-4 px-4 py-5 sm:px-6">
               <div>
                 <label htmlFor="project-title" className="mb-1.5 block text-sm font-semibold text-slate-700">Titre du projet *</label>
                 <input

@@ -136,16 +136,16 @@ export function VisitorRequestTrackingPage() {
                 </div>
                 <div className="divide-y divide-slate-100">
                   {request.plan.map((line, index) => (
-                    <div key={`${line.formatId}-${line.daypart}-${index}`} className="flex items-center justify-between gap-4 px-5 py-3 text-sm">
-                      <div>
-                        <p className="font-semibold text-slate-700">{line.formatLabel}</p>
-                        <p className="mt-0.5 text-xs text-slate-400">{line.channel} · {line.daypart} · {line.quantity} passage(s)</p>
+                    <div key={`${line.formatId}-${line.daypart}-${index}`} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm">
+                      <div className="min-w-0 flex-1">
+                        <p className="break-words font-semibold text-slate-700">{line.formatLabel}</p>
+                        <p className="mt-0.5 break-words text-xs text-slate-400">{line.channel} · {line.daypart} · {line.quantity} passage(s)</p>
                       </div>
                       <p className="shrink-0 font-mono text-xs font-semibold text-slate-600">{money(line.grossTotal, line.currency)}</p>
                     </div>
                   ))}
                 </div>
-                <div className="flex justify-between border-t border-slate-100 bg-slate-50 px-5 py-4 text-sm">
+                <div className="flex flex-wrap justify-between gap-2 border-t border-slate-100 bg-slate-50 px-5 py-4 text-sm">
                   <span className="font-semibold text-slate-500">Total indicatif brut</span>
                   <span className="font-bold text-slate-800">{money(total, currency)}</span>
                 </div>

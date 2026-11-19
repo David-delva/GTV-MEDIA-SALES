@@ -79,15 +79,15 @@ export function ProjectWorkspace({ projectId, onSubmitSuccess }: ProjectWorkspac
         </div>
 
         {/* Sélecteur de segment */}
-        <div className="flex items-center gap-2 lg:ml-4">
-          <label htmlFor="segment-select" className="text-xs font-bold uppercase tracking-wide text-slate-500 whitespace-nowrap">
+        <div className="flex min-w-0 basis-full flex-wrap items-center gap-2 sm:basis-auto lg:ml-4">
+          <label htmlFor="segment-select" className="text-xs font-bold uppercase tracking-wide text-slate-500 sm:whitespace-nowrap">
             Segment cible :
           </label>
           <select
             id="segment-select"
             value={targetSegment}
             onChange={(e) => setSegment(e.target.value)}
-            className="form-control min-w-[180px] !min-h-[38px] !py-1.5"
+            className="form-control min-w-0 !min-h-[38px] w-full !py-1.5 sm:min-w-[180px] sm:w-auto"
             disabled={availableSegments.length === 0}
           >
             <option value="">-- Choisir un segment --</option>
@@ -96,14 +96,14 @@ export function ProjectWorkspace({ projectId, onSubmitSuccess }: ProjectWorkspac
             ))}
           </select>
           {availableSegments.length === 0 && (
-            <span className="text-xs text-amber-600">
+            <span className="basis-full break-words text-xs text-amber-600">
               ⚠ Aucune donnée d'audience disponible [À REMPLIR PAR GTV]
             </span>
           )}
         </div>
 
         {/* Résumé budget + bouton soumettre */}
-        <div className="ml-auto flex items-center gap-4">
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-3 sm:gap-4">
           {project.budgetTarget && (
             <div className="text-sm text-right">
               <div className="font-semibold">{fmt(computed.totalNet)} XAF</div>

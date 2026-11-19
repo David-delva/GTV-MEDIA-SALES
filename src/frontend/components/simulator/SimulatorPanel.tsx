@@ -8,6 +8,9 @@ import React, { useState } from 'react';
 import { useSimulatorStore } from '../../store/simulatorStore';
 import { SimulatorLineRow } from './SimulatorLineRow';
 import { BudgetGauge } from '../ui/BudgetGauge';
+import { ScoreBadge } from '../ui/ScoreBadge';
+import { lineNetPrice, lineGrossPrice } from '../../../engine/simulatorEngine';
+import type { SimulatorLine } from '../../../types/simulator';
 
 export function SimulatorPanel() {
   const { lines, budgetTarget, computed, setBudgetTarget } = useSimulatorStore();
@@ -19,8 +22,8 @@ export function SimulatorPanel() {
     <section aria-label="Simulateur budgétaire" className="space-y-4">
 
       {/* En-tête : budget cible */}
-      <div className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-        <label htmlFor="budget-target" className="text-xs font-bold uppercase tracking-wide text-slate-500 whitespace-nowrap">
+      <div className="flex flex-col items-stretch gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)] sm:flex-row sm:items-center sm:gap-4">
+        <label htmlFor="budget-target" className="text-xs font-bold uppercase tracking-wide text-slate-500 sm:whitespace-nowrap">
           Budget cible (XAF)
         </label>
         <input
@@ -30,9 +33,9 @@ export function SimulatorPanel() {
           value={budgetTarget || ''}
           onChange={(e) => setBudgetTarget(Number(e.target.value))}
           placeholder="[Budget client]"
-          className="form-control w-48 !font-mono"
+          className="form-control w-full !font-mono sm:w-48"
         />
-        <div className="flex-1">
+        <div className="w-full min-w-0 flex-1">
           <BudgetGauge
             totalNet={computed.totalNet}
             budgetTarget={budgetTarget}
@@ -81,7 +84,7 @@ export function SimulatorPanel() {
           <p className="mt-1 text-xs">Utilisez l'assistant pour ajouter des options.</p>
         </div>
       ) : (
-        <div className="surface-card overflow-x-auto">
+        <div className="surface-card hidden overflow-x-auto 2xl:block">
           <table className="w-full text-sm">
             <thead className="bg-slate-50/80 text-[11px] font-bold uppercase tracking-[0.07em] text-slate-500">
               <tr>
@@ -118,7 +121,111 @@ export function SimulatorPanel() {
           </table>
         </div>
       )}
+      {lines.length > 0 && (
+        <div className="space-y-3 2xl:hidden">
+          {lines.map((line) => (
+            <SimulatorLineCard key={line.id} line={line} onRebalanceError={setRebalanceError} />
+          ))}
+          <div className="surface-card space-y-2 p-4 text-sm">
+            <div className="flex justify-between gap-3 font-semibold">
+              <span>Total net</span>
+              <span className="font-mono">{fmt(computed.totalNet)} XAF</span>
+            </div>
+            <div className="flex justify-between gap-3 text-slate-500">
+              <span>Total brut</span>
+              <span className="font-mono">{fmt(computed.totalGross)} XAF</span>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
+  );
+}
+
+function SimulatorLineCard({ line, onRebalanceError }: {
+  line: SimulatorLine;
+  onRebalanceError: (message: string) => void;
+}) {
+  const { updateQuantity, updateDiscount, toggleLock, rebalance } = useSimulatorStore();
+  const [localNetBudget, setLocalNetBudget] = useState(String(Math.round(lineNetPrice(line))));
+  const net = lineNetPrice(line);
+  const gross = lineGrossPrice(line);
+
+  const handleNetBudgetBlur = () => {
+    const parsed = Number(localNetBudget.replace(/\s/g, ''));
+    if (Number.isNaN(parsed) || parsed < 0) {
+      setLocalNetBudget(String(Math.round(net)));
+      return;
+    }
+    const result = rebalance(line.id, parsed);
+    if (!result.success) {
+      onRebalanceError(result.warning?.message ?? 'Rééquilibrage impossible.');
+      setLocalNetBudget(String(Math.round(net)));
+    }
+  };
+
+  return (
+    <article className={`surface-card min-w-0 p-4 ${line.isLocked ? 'bg-slate-50' : ''}`}>
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <h3 className="break-words font-bold text-slate-800">{line.formatLabel}</h3>
+          <p className="mt-1 break-words text-xs text-slate-500">{line.channel} · {line.daypart}</p>
+        </div>
+        <ScoreBadge scoring={line.scoring} />
+        <button
+          type="button"
+          onClick={() => toggleLock(line.id)}
+          aria-label={line.isLocked ? `Déverrouiller ${line.formatLabel}` : `Verrouiller ${line.formatLabel}`}
+          aria-pressed={line.isLocked}
+          className="shrink-0 text-lg"
+        >
+          {line.isLocked ? '🔒' : '🔓'}
+        </button>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <label className="text-[11px] font-semibold text-slate-500">
+          Quantité
+          <input
+            type="number"
+            min={0}
+            value={line.quantity}
+            disabled={line.isLocked}
+            onChange={(event) => updateQuantity(line.id, Number(event.target.value))}
+            className="form-control mt-1 !min-h-[38px] !px-2 !py-1 text-center disabled:bg-slate-100"
+            aria-label={`Quantité pour ${line.formatLabel}`}
+          />
+        </label>
+        <label className="text-[11px] font-semibold text-slate-500">
+          Remise (max. {line.discountMaxPct}%)
+          <input
+            type="number"
+            min={0}
+            max={line.discountMaxPct}
+            value={line.discountPct}
+            disabled={line.isLocked}
+            onChange={(event) => updateDiscount(line.id, Number(event.target.value))}
+            className="form-control mt-1 !min-h-[38px] !px-2 !py-1 text-center disabled:bg-slate-100"
+            aria-label={`Remise pour ${line.formatLabel}`}
+          />
+        </label>
+        <label className="text-[11px] font-semibold text-slate-500">
+          Budget net (XAF)
+          <input
+            type="text"
+            value={localNetBudget}
+            disabled={line.isLocked}
+            onChange={(event) => setLocalNetBudget(event.target.value)}
+            onBlur={handleNetBudgetBlur}
+            className="form-control mt-1 !min-h-[38px] !px-2 !py-1 text-right font-mono disabled:bg-slate-100"
+            aria-label={`Budget net pour ${line.formatLabel}`}
+          />
+        </label>
+        <div className="text-[11px] font-semibold text-slate-500">
+          Budget brut (XAF)
+          <p className="mt-1 flex min-h-[38px] items-center justify-end font-mono text-sm text-slate-700">{fmt(gross)}</p>
+        </div>
+      </div>
+    </article>
   );
 }
 

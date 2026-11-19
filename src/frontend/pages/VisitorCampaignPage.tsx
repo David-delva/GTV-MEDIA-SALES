@@ -387,7 +387,7 @@ export function VisitorCampaignPage() {
             </div>
 
             {loadingCatalog ? (
-              <div className="surface-card p-5 sm:p-7">
+              <div className="surface-card min-w-0 p-5 sm:p-7">
                 <SectionHeading number="01" title="Offres disponibles" description="Chargement du catalogue publicitaire…" />
                 <LoadingMessage text="Chargement des formats disponibles…" />
               </div>
@@ -402,8 +402,8 @@ export function VisitorCampaignPage() {
                 </button>
               </div>
             ) : (
-              <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-                <div className="surface-card p-5 sm:p-7">
+              <div className="grid min-w-0 grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+                <div className="surface-card min-w-0 p-5 sm:p-7">
                   <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                     <p className="text-sm text-slate-500">
                       <span className="font-bold text-slate-800">{catalog.lines.length} offres</span>
@@ -520,7 +520,7 @@ export function VisitorCampaignPage() {
                   </p>
                 </div>
 
-                <aside className="surface-card p-5 lg:sticky lg:top-4" aria-label="Votre panier de sélection">
+                <aside className="surface-card min-w-0 p-5 lg:sticky lg:top-4" aria-label="Votre panier de sélection">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#009A44]">Votre sélection</p>

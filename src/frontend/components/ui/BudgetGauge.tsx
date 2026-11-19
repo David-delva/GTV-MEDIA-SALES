@@ -28,7 +28,7 @@ export function BudgetGauge({
 
   return (
     <div className="space-y-1">
-      <div className="flex justify-between text-xs font-semibold text-slate-600">
+      <div className="flex flex-wrap justify-between gap-x-4 gap-y-1 text-xs font-semibold text-slate-600">
         <span>Budget utilisé</span>
         <span className={isOverBudget ? 'text-red-600 font-bold' : ''}>
           {budgetUsagePct.toFixed(1)}%
@@ -50,7 +50,7 @@ export function BudgetGauge({
         />
       </div>
 
-      <div className="flex justify-between text-xs text-gray-500">
+      <div className="flex flex-wrap justify-between gap-x-4 gap-y-1 text-xs text-gray-500">
         <span>{fmt(totalNet)} XAF alloués</span>
         <span>Cible : {fmt(budgetTarget)} XAF</span>
       </div>

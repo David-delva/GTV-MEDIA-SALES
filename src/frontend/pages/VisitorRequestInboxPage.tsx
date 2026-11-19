@@ -83,7 +83,7 @@ export function VisitorRequestInboxPage() {
                     <div className="min-w-0">
                       <p className="font-mono text-xs font-bold text-[#003189]">{item.reference}</p>
                       <h2 className="mt-1 text-base font-bold text-slate-800">{item.companyName}</h2>
-                      <p className="mt-1 text-sm text-slate-500">{item.fullName} · <a className="text-[#003189] hover:underline" href={`mailto:${encodeURIComponent(item.email)}`}>{item.email}</a></p>
+                      <p className="mt-1 break-words text-sm text-slate-500">{item.fullName} · <a className="break-all text-[#003189] hover:underline" href={`mailto:${encodeURIComponent(item.email)}`}>{item.email}</a></p>
                       <p className="mt-2 text-xs text-slate-400">
                         {item.objective ?? item.brief.objective}
                         {item.brief.targetSegment ? ` · ${item.brief.targetSegment}` : ''}
