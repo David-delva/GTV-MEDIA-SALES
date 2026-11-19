@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "jsx": "preserve",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "outDir": "./dist/server",
+    "rootDir": "./src",
+    "noEmit": false
+  },
+  "include": [
+    "src/server.ts",
+    "src/api/**/*",
+    "src/engine/**/*",
+    "src/types/**/*"
+  ],
+  "exclude": [
+    "src/frontend/**/*",
+    "node_modules"
+  ]
+}

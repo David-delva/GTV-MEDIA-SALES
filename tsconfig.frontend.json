@@ -1,0 +1,26 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "types": ["vite/client"]
+  },
+  "include": [
+    "src/frontend/**/*",
+    "src/engine/scoringEngine.ts",
+    "src/engine/scoringEngineFull.ts",
+    "src/engine/simulatorEngine.ts",
+    "src/engine/simulationCalculator.ts",
+    "src/types/**/*"
+  ],
+  "exclude": [
+    "src/api/**/*",
+    "src/server.ts",
+    "node_modules"
+  ]
+}
