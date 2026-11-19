@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ScoreBadge } from '../components/ui/ScoreBadge';
 import { VisitorShell } from '../components/ui/AppShell';
 import { visitorApi } from '../services/api';
+import { catalogChannelName, catalogDaypartName, catalogProductName } from '../utils/catalogDisplay';
 import type {
   ScoredOptionDto,
   VisitorCatalogDto,
@@ -76,6 +77,8 @@ export function VisitorCampaignPage() {
   const [contact, setContact] = useState<ContactState>(EMPTY_CONTACT);
   const [message, setMessage] = useState('');
   const [selected, setSelected] = useState<Record<string, number>>({});
+  const [activeCategory, setActiveCategory] = useState('TOUT');
+  const [productSearch, setProductSearch] = useState('');
   const [scores, setScores] = useState<ScoredOptionDto[]>([]);
   const [step, setStep] = useState(1);
   const [loadingCatalog, setLoadingCatalog] = useState(true);
@@ -109,6 +112,24 @@ export function VisitorCampaignPage() {
       return groups;
     }, {});
   }, [catalog]);
+
+  const visibleLines = useMemo(() => {
+    const search = productSearch.trim().toLocaleLowerCase('fr');
+    return (catalog?.lines ?? [])
+      .filter((line) => {
+        const matchesCategory = activeCategory === 'TOUT' || line.category === activeCategory;
+        const searchableText = [
+          catalogProductName(line.formatLabel),
+          catalogChannelName(line.channel),
+          catalogDaypartName(line.daypart),
+        ].join(' ').toLocaleLowerCase('fr');
+        return matchesCategory && (!search || searchableText.includes(search));
+      })
+      .sort((left, right) =>
+        CATEGORY_ORDER.indexOf(left.category) - CATEGORY_ORDER.indexOf(right.category)
+        || left.grossPrice - right.grossPrice
+      );
+  }, [activeCategory, catalog, productSearch]);
 
   const indicativeTotal = selectedLines.reduce(
     (sum, item) => sum + Math.round(item.line.grossPrice * 100) * item.quantity / 100,
@@ -350,128 +371,203 @@ export function VisitorCampaignPage() {
         )}
 
         {step === 1 && (
-          <section className="surface-card mt-6 p-5 sm:p-7">
-            <SectionHeading number="01" title="Découvrez nos formats publicitaires" description="Choisissez les options qui vous intéressent. Vous pourrez ajuster votre sélection avant d’envoyer votre demande." />
+          <section className="mt-6">
+            <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#009A44]">Boutique publicitaire</p>
+                <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">Choisissez vos espaces média</h2>
+                <p className="mt-2 text-sm text-slate-500">Comparez les formats, les périodes et les tarifs avant de composer votre demande.</p>
+              </div>
+              {catalog?.rateCard?.name.includes('DEMO_FICTIF') && (
+                <span className="inline-flex w-fit items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800">
+                  <span className="h-2 w-2 rounded-full bg-amber-500" />
+                  Boutique démo · tarifs fictifs
+                </span>
+              )}
+            </div>
 
             {loadingCatalog ? (
-              <LoadingMessage text="Chargement des formats disponibles…" />
+              <div className="surface-card p-5 sm:p-7">
+                <SectionHeading number="01" title="Offres disponibles" description="Chargement du catalogue publicitaire…" />
+                <LoadingMessage text="Chargement des formats disponibles…" />
+              </div>
             ) : !catalog?.rateCard || catalog.lines.length === 0 ? (
-              <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
-                La grille tarifaire n’est pas disponible pour le moment. Vous pouvez tout de même transmettre votre brief; l’équipe GTV vous répondra avec les options disponibles.
+              <div className="surface-card p-5 sm:p-7">
+                <SectionHeading number="01" title="Offres disponibles" description="Vous pouvez transmettre votre brief même sans choisir de format." />
+                <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
+                  La grille tarifaire n’est pas disponible pour le moment. L’équipe GTV pourra vous présenter les options adaptées à votre projet.
+                </div>
+                <button type="button" onClick={() => setStep(2)} className="mt-5 h-11 rounded-lg bg-[#003189] px-5 text-sm font-bold text-white transition hover:bg-[#002570]">
+                  Continuer sans sélection
+                </button>
               </div>
             ) : (
-              <>
-                <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-                  <div>
-                    <p className="text-sm font-bold text-slate-800">Offres actuellement renseignées</p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {catalog.rateCard.name} · grille en vigueur depuis le {formatDate(catalog.rateCard.validFrom)}
+              <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+                <div className="surface-card p-5 sm:p-7">
+                  <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm text-slate-500">
+                      <span className="font-bold text-slate-800">{catalog.lines.length} offres</span>
+                      {' · '}Grille valide depuis le {formatDate(catalog.rateCard.validFrom)}
                     </p>
+                    <label className="relative w-full sm:w-64">
+                      <span className="sr-only">Rechercher un format</span>
+                      <input
+                        type="search"
+                        value={productSearch}
+                        onChange={(event) => setProductSearch(event.target.value)}
+                        placeholder="Rechercher un format…"
+                        className="form-control !min-h-[40px] pl-9 text-sm"
+                      />
+                      <span className="pointer-events-none absolute left-3 top-2.5 text-slate-400" aria-hidden="true">⌕</span>
+                    </label>
                   </div>
-                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-500">
-                    {catalog.lines.length} option{catalog.lines.length > 1 ? 's' : ''}
-                  </span>
-                </div>
-                {catalog.rateCard.name.includes('DEMO_FICTIF') && (
-                  <p className="mt-3 inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800">
-                    Catalogue de démonstration · tarifs et audiences fictifs
-                  </p>
-                )}
 
-                <p className="mt-5 text-sm leading-6 text-slate-500">
-                  Parcourez les formats par type, puis cochez les options qui correspondent à votre projet. Les prix proviennent de la grille active et restent indicatifs jusqu’à confirmation par GTV.
-                </p>
+                  <nav aria-label="Catégories de formats" className="mb-6 flex gap-2 overflow-x-auto pb-1">
+                    {[['TOUT', 'Tout'], ...Object.entries(linesByCategory)
+                      .sort(([left], [right]) => CATEGORY_ORDER.indexOf(left) - CATEGORY_ORDER.indexOf(right))
+                      .map(([category]) => [category, CATEGORY_LABELS[category] ?? category])]
+                      .map(([category, label]) => (
+                        <button
+                          key={category}
+                          type="button"
+                          aria-pressed={activeCategory === category}
+                          onClick={() => setActiveCategory(category)}
+                          className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition ${activeCategory === category ? 'bg-[#003189] text-white shadow-sm' : 'border border-slate-200 bg-white text-slate-600 hover:border-[#003189]/30 hover:text-[#003189]'}`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                  </nav>
 
-                <div className="mt-6 space-y-7">
-                  {Object.entries(linesByCategory)
-                    .sort(([left], [right]) => CATEGORY_ORDER.indexOf(left) - CATEGORY_ORDER.indexOf(right))
-                    .map(([category, lines]) => (
-                    <section key={category} aria-labelledby={`category-${category}`}>
-                      <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-2">
-                        <h3 id={`category-${category}`} className="text-base font-bold text-slate-800">
-                          {CATEGORY_LABELS[category] ?? category}
-                        </h3>
-                        <span className="text-xs text-slate-400">{lines.length} option{lines.length > 1 ? 's' : ''}</span>
-                      </div>
-                      <div className="grid gap-3 md:grid-cols-2">
-                        {lines.map((line) => {
-                          const key = optionKey(line);
-                          const quantity = selected[key] ?? 0;
-                          return (
-                            <article
-                              key={key}
-                              className={`rounded-xl border p-4 transition ${quantity ? 'border-[#003189]/30 bg-blue-50/40 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'}`}
-                            >
-                              <label className="flex cursor-pointer items-start gap-3">
-                                <input
-                                  type="checkbox"
-                                  checked={quantity > 0}
-                                  onChange={(event) => updateQuantity(line, event.target.checked ? '1' : '0')}
-                                  className="mt-1 h-4 w-4 accent-[#003189]"
-                                  aria-label={`Sélectionner ${line.formatLabel}, ${line.channel}, ${line.daypart}`}
-                                />
-                                <span className="min-w-0 flex-1">
-                                  <span className="block font-bold text-slate-800">{line.formatLabel}</span>
-                                  <span className="mt-1 block text-xs text-slate-500">
-                                    {line.channel} · {line.daypart}
+                  {visibleLines.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-5 py-10 text-center">
+                      <p className="font-semibold text-slate-700">Aucune offre ne correspond à votre recherche.</p>
+                      <button type="button" onClick={() => { setProductSearch(''); setActiveCategory('TOUT'); }} className="mt-2 text-sm font-bold text-[#003189]">
+                        Effacer les filtres
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {visibleLines.map((line) => {
+                        const key = optionKey(line);
+                        const quantity = selected[key] ?? 0;
+                        const artStyle = line.category === 'SPOT'
+                          ? 'from-[#0b2c66] via-[#17458d] to-[#386bb3]'
+                          : line.category === 'PARRAINAGE'
+                            ? 'from-[#075b3a] via-[#0d8051] to-[#45a678]'
+                            : line.category === 'HABILLAGE'
+                              ? 'from-[#7a4a06] via-[#b27a12] to-[#e0b335]'
+                              : 'from-slate-700 via-slate-600 to-slate-500';
+                        return (
+                          <article key={key} className={`group overflow-hidden rounded-2xl border bg-white transition ${quantity ? 'border-[#003189]/40 shadow-[0_12px_30px_rgba(0,49,137,0.12)]' : 'border-slate-200 shadow-[0_8px_24px_rgba(15,23,42,0.04)] hover:-translate-y-0.5 hover:shadow-lg'}`}>
+                            <div className={`relative flex h-28 items-end justify-between overflow-hidden bg-gradient-to-br ${artStyle} p-4 text-white`}>
+                              <div className="absolute -right-4 -top-10 h-36 w-36 rounded-full border-[18px] border-white/10" />
+                              <div className="absolute right-8 top-5 h-2 w-16 rounded-full bg-[#FCD116]" />
+                              <div className="absolute right-8 top-9 h-2 w-24 rounded-full bg-[#009A44]" />
+                              <span className="relative rounded-full bg-black/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider backdrop-blur">
+                                {CATEGORY_LABELS[line.category] ?? line.category}
+                              </span>
+                              <span className="relative text-xs font-semibold text-white/75">GTV · MEDIA</span>
+                            </div>
+                            <div className="p-4">
+                              <div className="flex min-h-[72px] items-start justify-between gap-3">
+                                <div>
+                                  <h3 className="font-bold leading-5 text-slate-900">{catalogProductName(line.formatLabel)}</h3>
+                                  <p className="mt-1.5 text-xs leading-5 text-slate-500">
+                                    {catalogChannelName(line.channel)} · {catalogDaypartName(line.daypart)}
                                     {line.durationSec ? ` · ${line.durationSec} s` : ''}
-                                  </span>
-                                  <span className="mt-3 block text-sm font-semibold text-slate-700">
-                                    {formatMoney(line.grossPrice, line.currency)}
-                                    <span className="ml-1 text-xs font-normal text-slate-400">/ passage</span>
-                                  </span>
-                                </span>
-                              </label>
+                                  </p>
+                                </div>
+                                {quantity > 0 && <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">Dans le panier</span>}
+                              </div>
+                              <div className="mt-3 flex items-end justify-between gap-2 border-t border-slate-100 pt-3">
+                                <div>
+                                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Tarif indicatif</p>
+                                  <p className="mt-0.5 text-lg font-extrabold tracking-tight text-[#003189]">{formatMoney(line.grossPrice, line.currency)}</p>
+                                  <p className="text-[11px] text-slate-400">par diffusion</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  aria-pressed={quantity > 0}
+                                  onClick={() => updateQuantity(line, quantity ? '0' : '1')}
+                                  className={`min-h-10 rounded-lg px-3 text-xs font-bold transition ${quantity ? 'border border-slate-200 bg-white text-slate-600 hover:border-red-200 hover:text-red-600' : 'bg-[#003189] text-white hover:bg-[#002570]'}`}
+                                >
+                                  {quantity ? 'Retirer' : 'Ajouter au panier'}
+                                </button>
+                              </div>
                               {quantity > 0 && (
-                                <label className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs font-semibold text-slate-500">
-                                  Nombre de passages
+                                <label className="mt-3 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">
+                                  Nombre de diffusions
                                   <input
                                     type="number"
                                     min="1"
                                     max="100000"
                                     value={quantity}
                                     onChange={(event) => updateQuantity(line, event.target.value)}
-                                    className="form-control !min-h-[36px] !w-24 !py-1 text-right"
-                                    aria-label={`Nombre de passages pour ${line.formatLabel}`}
+                                    className="form-control !min-h-[34px] !w-20 !py-1 text-right"
+                                    aria-label={`Nombre de diffusions pour ${catalogProductName(line.formatLabel)}`}
                                   />
                                 </label>
                               )}
-                            </article>
-                          );
-                        })}
-                      </div>
-                    </section>
-                  ))}
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <p className="mt-5 text-xs leading-5 text-slate-400">
+                    Les tarifs affichés sont indicatifs. La sélection constitue une demande de devis, pas une réservation; GTV confirmera les disponibilités et les conditions.
+                  </p>
                 </div>
-              </>
-            )}
 
-            {selectedLines.length > 0 && (
-              <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 px-4 py-3">
-                <span className="text-xs font-semibold text-slate-500">{selectedLines.length} format(s) sélectionné(s)</span>
-                <span className="text-sm font-bold text-slate-800">
-                  Total indicatif brut : {formatMoney(indicativeTotal, selectedLines[0].line.currency)}
-                </span>
+                <aside className="surface-card p-5 lg:sticky lg:top-4" aria-label="Votre panier de sélection">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#009A44]">Votre sélection</p>
+                      <h3 className="mt-1 text-lg font-bold text-slate-900">Panier de devis</h3>
+                    </div>
+                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#eef3fb] text-sm font-extrabold text-[#003189]">{selectedLines.length}</span>
+                  </div>
+
+                  {selectedLines.length === 0 ? (
+                    <div className="mt-5 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center">
+                      <p className="text-sm font-semibold text-slate-700">Votre panier est vide</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">Ajoutez les formats qui vous intéressent pour préparer votre devis.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mt-4 max-h-72 space-y-3 overflow-y-auto">
+                        {selectedLines.map(({ line, quantity }) => (
+                          <div key={optionKey(line)} className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-bold text-slate-800">{catalogProductName(line.formatLabel)}</p>
+                              <p className="mt-1 text-xs text-slate-500">{quantity} × {formatMoney(line.grossPrice, line.currency)}</p>
+                            </div>
+                            <button type="button" onClick={() => updateQuantity(line, '0')} className="shrink-0 text-xs font-semibold text-slate-400 hover:text-red-600" aria-label={`Retirer ${catalogProductName(line.formatLabel)} du panier`}>
+                              Retirer
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-4 flex items-end justify-between border-t border-slate-100 pt-4">
+                        <span className="text-sm font-semibold text-slate-600">Total indicatif</span>
+                        <span className="text-lg font-extrabold text-slate-900">{formatMoney(indicativeTotal, selectedLines[0].line.currency)}</span>
+                      </div>
+                    </>
+                  )}
+
+                  <button
+                    type="button"
+                    disabled={loadingCatalog}
+                    onClick={() => setStep(2)}
+                    className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#003189] px-4 text-sm font-bold text-white transition hover:bg-[#002570] disabled:cursor-wait disabled:opacity-50"
+                  >
+                    Continuer vers mon brief <span aria-hidden="true">→</span>
+                  </button>
+                  <p className="mt-3 text-center text-[11px] leading-5 text-slate-400">Devis sans engagement · aucun paiement en ligne</p>
+                </aside>
               </div>
             )}
-
-            <p className="mt-4 text-xs leading-5 text-slate-400">
-              La sélection est une première indication, pas une réservation. Un commercial GTV confirmera les disponibilités, les remises et les conditions du devis.
-            </p>
-
-            <div className="mt-7 flex flex-col-reverse justify-between gap-3 sm:flex-row sm:items-center">
-              <span className="text-xs font-semibold text-slate-500">
-                {selectedLines.length ? `${selectedLines.length} option(s) retenue(s)` : 'Vous pouvez continuer sans sélectionner de format.'}
-              </span>
-              <button
-                type="button"
-                disabled={loadingCatalog}
-                onClick={() => setStep(2)}
-                className="h-11 rounded-lg bg-[#003189] px-5 text-sm font-bold text-white transition hover:bg-[#002570] disabled:cursor-wait disabled:opacity-50"
-              >
-                Continuer vers mon brief
-              </button>
-            </div>
           </section>
         )}
 

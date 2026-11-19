@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { VisitorShell } from '../components/ui/AppShell';
 import { visitorApi, type VisitorCatalogDto, type VisitorCatalogLine } from '../services/api';
+import { catalogChannelName, catalogDaypartName, catalogProductName } from '../utils/catalogDisplay';
 
 const STEPS = [
   {
@@ -58,13 +59,16 @@ export function VisitorLandingPage() {
           category,
           label: CATEGORY_LABELS[category] ?? category,
           optionCount: lines.length,
+          startingPrice: Math.min(...lines.map((line) => line.grossPrice)),
+          currency: lines[0].currency,
           formats: formatIds.map((formatId) => {
             const formatLines = lines.filter((line) => line.formatId === formatId);
             return {
               formatId,
-              label: formatLines[0].formatLabel,
+              label: catalogProductName(formatLines[0].formatLabel),
               durationSec: formatLines[0].durationSec,
-              options: [...new Set(formatLines.map((line) => `${line.channel} · ${line.daypart}`))],
+              channels: [...new Set(formatLines.map((line) => catalogChannelName(line.channel)))],
+              dayparts: [...new Set(formatLines.map((line) => catalogDaypartName(line.daypart)))],
             };
           }),
         };
@@ -84,10 +88,10 @@ export function VisitorLandingPage() {
                 Gabon Télévisions · Espace annonceurs
               </p>
               <h1 className="text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl">
-                Votre campagne commence par une bonne idée.
+                Choisissez vos espaces publicitaires sur les chaînes GTV.
               </h1>
               <p className="mt-5 max-w-xl text-base leading-7 text-blue-100/80">
-                Découvrez les formats publicitaires renseignés par GTV, composez une première sélection et expliquez-nous votre objectif. Notre équipe commerciale vous accompagne pour confirmer une proposition adaptée.
+                Parcourez les formats, comparez les tarifs indicatifs et composez votre sélection. L’équipe commerciale de Gabon Télévisions vous accompagne jusqu’au devis adapté à votre campagne.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link
@@ -157,10 +161,10 @@ export function VisitorLandingPage() {
         <section id="nos-formats" className="mx-auto max-w-6xl px-5 py-14 lg:px-8 lg:py-16">
           <div className="mb-8 flex flex-col justify-between gap-5 md:flex-row md:items-end">
             <div className="max-w-2xl">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#009A44]">L’offre GTV</p>
-              <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">Explorez les formats disponibles.</h2>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#009A44]">Boutique publicitaire GTV</p>
+              <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">Trouvez le bon format pour votre marque.</h2>
               <p className="mt-3 text-sm leading-6 text-slate-500">
-                Les options ci-dessous proviennent du catalogue actif. Sélectionnez celles qui vous intéressent pour construire votre brief.
+                Comparez les offres du catalogue et ajoutez vos préférées à une demande de devis, sans paiement en ligne.
               </p>
             </div>
             <Link to="/campagne" className="inline-flex h-11 shrink-0 items-center justify-center rounded-lg bg-[#003189] px-5 text-sm font-bold text-white transition hover:bg-[#002570]">
@@ -189,31 +193,51 @@ export function VisitorLandingPage() {
               )}
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {categories.map((category) => (
-                  <article key={category.category} className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:border-[#003189]/20 hover:shadow-[0_16px_34px_rgba(15,23,42,0.08)]">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#009A44]">Format publicitaire</p>
-                        <h3 className="mt-1 text-lg font-bold text-slate-900">{category.label}</h3>
-                      </div>
-                      <span className="rounded-full bg-[#eef3fb] px-2.5 py-1 text-[11px] font-bold text-[#003189]">
-                        {category.optionCount} option{category.optionCount > 1 ? 's' : ''}
-                      </span>
+                  <article key={category.category} className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:border-[#003189]/20 hover:shadow-[0_16px_34px_rgba(15,23,42,0.08)]">
+                    <div className={`relative flex h-28 items-end justify-between overflow-hidden bg-gradient-to-br p-5 text-white ${category.category === 'SPOT' ? 'from-[#0b2c66] via-[#17458d] to-[#386bb3]' : category.category === 'PARRAINAGE' ? 'from-[#075b3a] via-[#0d8051] to-[#45a678]' : category.category === 'HABILLAGE' ? 'from-[#7a4a06] via-[#b27a12] to-[#e0b335]' : 'from-slate-700 via-slate-600 to-slate-500'}`}>
+                      <div className="absolute -right-4 -top-10 h-36 w-36 rounded-full border-[18px] border-white/10" />
+                      <div className="absolute right-8 top-5 h-2 w-16 rounded-full bg-[#FCD116]" />
+                      <div className="absolute right-8 top-9 h-2 w-24 rounded-full bg-[#009A44]" />
+                      <span className="relative text-sm font-bold">{category.label}</span>
+                      <span className="relative rounded-full bg-black/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider backdrop-blur">GTV · MEDIA</span>
                     </div>
-                    <div className="mt-4 flex-1 space-y-3">
-                      {category.formats.slice(0, 3).map((format) => (
-                        <div key={format.formatId} className="rounded-xl bg-slate-50 p-3">
-                          <p className="text-sm font-semibold text-slate-800">{format.label}</p>
-                          {format.durationSec && <p className="mt-1 text-xs text-slate-500">Durée : {format.durationSec} secondes</p>}
-                          <p className="mt-1 text-xs leading-5 text-slate-500">{format.options.join(' · ')}</p>
+                    <div className="flex flex-1 flex-col p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#009A44]">Espace média</p>
+                          <h3 className="mt-1 text-lg font-bold text-slate-900">{category.label}</h3>
                         </div>
-                      ))}
-                      {category.formats.length > 3 && (
-                        <p className="text-xs font-medium text-slate-500">Et {category.formats.length - 3} autre(s) format(s) dans cette catégorie.</p>
-                      )}
+                        <span className="rounded-full bg-[#eef3fb] px-2.5 py-1 text-[11px] font-bold text-[#003189]">
+                          {category.optionCount} option{category.optionCount > 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      <div className="mt-4 flex-1 space-y-3">
+                        {category.formats.slice(0, 3).map((format) => (
+                          <div key={format.formatId} className="rounded-xl bg-slate-50 p-3">
+                            <p className="text-sm font-semibold text-slate-800">{format.label}</p>
+                            {format.durationSec && <p className="mt-1 text-xs text-slate-500">Durée : {format.durationSec} secondes</p>}
+                            <p className="mt-1 text-xs leading-5 text-slate-500">
+                              Chaînes : {format.channels.join(', ')} · Périodes : {format.dayparts.join(', ')}
+                            </p>
+                          </div>
+                        ))}
+                        {category.formats.length > 3 && (
+                          <p className="text-xs font-medium text-slate-500">Et {category.formats.length - 3} autre(s) format(s) dans cette catégorie.</p>
+                        )}
+                      </div>
+                      <div className="mt-5 flex items-end justify-between gap-3 border-t border-slate-100 pt-4">
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">À partir de</p>
+                          <p className="mt-0.5 text-lg font-extrabold text-[#003189]">
+                            {new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(category.startingPrice)} {category.currency}
+                          </p>
+                          <p className="text-[11px] text-slate-400">par diffusion · tarif indicatif</p>
+                        </div>
+                        <Link to="/campagne" className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[#003189] px-3 text-xs font-bold text-white transition hover:bg-[#002570]">
+                          Découvrir
+                        </Link>
+                      </div>
                     </div>
-                    <Link to="/campagne" className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-[#003189] transition group-hover:gap-3">
-                      Choisir dans le catalogue <span aria-hidden="true">→</span>
-                    </Link>
                   </article>
                 ))}
               </div>
