@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ScoreBadge } from '../components/ui/ScoreBadge';
 import { VisitorShell } from '../components/ui/AppShell';
@@ -85,8 +85,10 @@ export function VisitorCampaignPage() {
   const [loadingCatalog, setLoadingCatalog] = useState(true);
   const [scoring, setScoring] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [catalogWarning, setCatalogWarning] = useState<string | null>(null);
+  const mobileCartTriggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -142,6 +144,22 @@ export function VisitorCampaignPage() {
   const indicativeTotalLabel = Object.entries(indicativeTotals)
     .map(([currency, total]) => formatMoney(total, currency))
     .join(' + ');
+  const diffusionCount = selectedLines.reduce((sum, item) => sum + item.quantity, 0);
+
+  useEffect(() => {
+    if (!mobileCartOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMobileCartOpen(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', closeOnEscape);
+      mobileCartTriggerRef.current?.focus();
+    };
+  }, [mobileCartOpen]);
   const scoreByKey = new Map(
     scores.map((item) => [optionKey(item.option), item.scoring])
   );
@@ -381,7 +399,7 @@ export function VisitorCampaignPage() {
         )}
 
         {step === 1 && (
-          <section className="mt-6">
+          <section className="mt-6 pb-24 lg:pb-0">
             <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#009A44]">Boutique publicitaire</p>
@@ -526,7 +544,7 @@ export function VisitorCampaignPage() {
                   </p>
                 </div>
 
-                <aside className="surface-card min-w-0 p-5 lg:sticky lg:top-4" aria-label="Votre panier de sélection">
+                <aside className="surface-card sticky top-4 hidden min-w-0 p-5 lg:block" aria-label="Votre panier de sélection">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#009A44]">Votre sélection</p>
@@ -573,6 +591,140 @@ export function VisitorCampaignPage() {
                   <p className="mt-3 text-center text-[11px] leading-5 text-slate-400">Devis sans engagement · aucun paiement en ligne</p>
                 </aside>
               </div>
+            )}
+            {!loadingCatalog && catalog && catalog.lines.length > 0 && (
+              <>
+                <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] shadow-[0_-8px_24px_rgba(15,23,42,0.10)] backdrop-blur lg:hidden">
+                  <div className="mx-auto flex max-w-3xl items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-bold text-slate-800">
+                        {selectedLines.length === 0
+                          ? 'Panier de devis'
+                          : `${selectedLines.length} offre${selectedLines.length > 1 ? 's' : ''} · ${diffusionCount} diffusion${diffusionCount > 1 ? 's' : ''}`}
+                      </p>
+                      <p className="truncate text-xs text-slate-500">
+                        {selectedLines.length === 0 ? 'Aucune offre sélectionnée' : indicativeTotalLabel}
+                      </p>
+                    </div>
+                    <button
+                      ref={mobileCartTriggerRef}
+                      type="button"
+                      onClick={() => setMobileCartOpen(true)}
+                      className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#0055B8] px-4 text-sm font-bold text-white shadow-sm transition hover:bg-[#00338D] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0055B8]"
+                      aria-haspopup="dialog"
+                      aria-label={`Ouvrir le panier, ${selectedLines.length} offre(s), ${diffusionCount} diffusion(s)`}
+                    >
+                      Voir le panier
+                      <span className="grid h-6 min-w-6 place-items-center rounded-full bg-white/20 px-1 text-xs">{selectedLines.length}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {mobileCartOpen && (
+                  <div className="fixed inset-0 z-50 flex items-end lg:hidden">
+                    <button
+                      type="button"
+                      className="absolute inset-0 bg-slate-950/45 backdrop-blur-[2px]"
+                      onClick={() => setMobileCartOpen(false)}
+                      aria-label="Fermer le panier"
+                    />
+                    <section
+                      role="dialog"
+                      aria-modal="true"
+                      aria-labelledby="mobile-cart-title"
+                      className="relative flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl"
+                    >
+                      <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-slate-200" />
+                      <header className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 pb-4 pt-4">
+                        <div>
+                          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#009A44]">Votre sélection</p>
+                          <h2 id="mobile-cart-title" className="mt-1 text-lg font-bold text-slate-900">Panier de devis</h2>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {selectedLines.length} offre{selectedLines.length > 1 ? 's' : ''} · {diffusionCount} diffusion{diffusionCount > 1 ? 's' : ''}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          autoFocus
+                          onClick={() => setMobileCartOpen(false)}
+                          className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-slate-200 text-lg text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
+                          aria-label="Fermer le panier"
+                        >
+                          ×
+                        </button>
+                      </header>
+
+                      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5">
+                        {selectedLines.length === 0 ? (
+                          <div className="py-12 text-center">
+                            <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#eef3fb] text-2xl text-[#0055B8]" aria-hidden="true">⌑</span>
+                            <p className="mt-4 text-sm font-bold text-slate-800">Votre panier est vide</p>
+                            <p className="mx-auto mt-1 max-w-xs text-xs leading-5 text-slate-500">Ajoutez une offre au catalogue pour préparer votre demande de devis.</p>
+                          </div>
+                        ) : (
+                          <ul className="divide-y divide-slate-100">
+                            {selectedLines.map(({ line, quantity }) => (
+                              <li key={optionKey(line)} className="py-4">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="break-words text-sm font-bold text-slate-800">{catalogProductName(line.formatLabel)}</p>
+                                    <p className="mt-1 text-xs text-slate-500">{catalogChannelName(line.channel)} · {catalogDaypartName(line.daypart)}</p>
+                                    <p className="mt-1 break-words text-[11px] text-slate-400">{line.rateCardName}</p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => updateQuantity(line, '0')}
+                                    className="shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-red-50 hover:text-red-600"
+                                    aria-label={`Retirer ${catalogProductName(line.formatLabel)} du panier`}
+                                  >
+                                    Retirer
+                                  </button>
+                                </div>
+                                <div className="mt-3 flex items-center justify-between gap-3">
+                                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                                    Quantité
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      max="100000"
+                                      value={quantity}
+                                      onChange={(event) => updateQuantity(line, event.target.value)}
+                                      className="form-control !min-h-[38px] !w-20 !py-1 text-right"
+                                      aria-label={`Quantité pour ${catalogProductName(line.formatLabel)}`}
+                                    />
+                                  </label>
+                                  <span className="text-sm font-extrabold text-[#0055B8]">
+                                    {formatMoney(line.grossPrice * quantity, line.currency)}
+                                  </span>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+
+                      <footer className="border-t border-slate-100 bg-white px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4">
+                        {selectedLines.length > 0 && (
+                          <div className="mb-3 flex items-end justify-between gap-3">
+                            <span className="text-sm font-semibold text-slate-600">Total indicatif</span>
+                            <span className="text-lg font-extrabold text-slate-900">{indicativeTotalLabel}</span>
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          disabled={loadingCatalog}
+                          onClick={() => { setMobileCartOpen(false); setStep(2); }}
+                          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0055B8] px-4 text-sm font-bold text-white transition hover:bg-[#00338D] disabled:cursor-wait disabled:opacity-50"
+                        >
+                          {selectedLines.length > 0 ? 'Continuer vers mon brief' : 'Continuer sans sélection'}
+                          <span aria-hidden="true">→</span>
+                        </button>
+                        <p className="mt-2 text-center text-[11px] text-slate-400">Demande de devis sans engagement · aucun paiement</p>
+                      </footer>
+                    </section>
+                  </div>
+                )}
+              </>
             )}
           </section>
         )}
