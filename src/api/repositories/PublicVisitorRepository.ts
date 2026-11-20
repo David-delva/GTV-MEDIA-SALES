@@ -21,6 +21,7 @@ export interface VisitorContact {
 }
 
 export interface VisitorSelection {
+  rateCardId: string;
   formatId: string;
   daypart: string;
   channel: string;
@@ -39,31 +40,33 @@ export class PublicVisitorRepository {
   constructor(private readonly db: Pool) {}
 
   async getCatalog() {
-    const activeCard = await this.db.query(
+    const activeCards = await this.db.query(
       `SELECT id, name, to_char(valid_from, 'YYYY-MM-DD') AS valid_from
        FROM rate_card
        WHERE status = 'ACTIVE'
          AND valid_from <= CURRENT_DATE
          AND (valid_to IS NULL OR valid_to >= CURRENT_DATE)
-       ORDER BY valid_from DESC
-       LIMIT 1`
+       ORDER BY is_default DESC, valid_from DESC, created_at DESC`
     );
 
-    if (!activeCard.rows[0]) {
-      return { rateCard: null, lines: [], segments: [] };
+    if (activeCards.rows.length === 0) {
+      return { rateCards: [], lines: [], segments: [] };
     }
 
-    const rateCard = activeCard.rows[0];
     const [lineResult, segmentResult] = await Promise.all([
       this.db.query(
-        `SELECT rcl.format_id, f.label AS format_label, f.category,
+        `SELECT rcl.rate_card_id, card.name AS rate_card_name,
+                rcl.format_id, f.label AS format_label, f.category,
                 f.duration_sec, rcl.daypart, rcl.channel, rcl.gross_price,
                 rcl.discount_max_pct, rcl.currency
          FROM rate_card_line rcl
          JOIN format f ON f.id = rcl.format_id
-         WHERE rcl.rate_card_id = $1 AND f.is_active = TRUE
-         ORDER BY f.category, f.label, rcl.channel, rcl.daypart`,
-        [rateCard.id]
+         JOIN rate_card card ON card.id = rcl.rate_card_id
+         WHERE card.status = 'ACTIVE'
+           AND card.valid_from <= CURRENT_DATE
+           AND (card.valid_to IS NULL OR card.valid_to >= CURRENT_DATE)
+           AND f.is_active = TRUE
+         ORDER BY f.category, f.label, rcl.channel, rcl.daypart, card.name`
       ),
       this.db.query(
         `SELECT DISTINCT a.target_segment
@@ -72,19 +75,23 @@ export class PublicVisitorRepository {
            ON rcl.format_id = a.format_id
           AND rcl.daypart = a.daypart
           AND rcl.channel = a.channel
-         WHERE rcl.rate_card_id = $1
-         ORDER BY a.target_segment`,
-        [rateCard.id]
+         JOIN rate_card card ON card.id = rcl.rate_card_id
+         WHERE card.status = 'ACTIVE'
+           AND card.valid_from <= CURRENT_DATE
+           AND (card.valid_to IS NULL OR card.valid_to >= CURRENT_DATE)
+         ORDER BY a.target_segment`
       ),
     ]);
 
     return {
-      rateCard: {
+      rateCards: activeCards.rows.map((rateCard) => ({
         id: rateCard.id as string,
         name: rateCard.name as string,
         validFrom: rateCard.valid_from as string,
-      },
+      })),
       lines: lineResult.rows.map((row) => ({
+        rateCardId: row.rate_card_id as string,
+        rateCardName: row.rate_card_name as string,
         formatId: row.format_id as string,
         formatLabel: row.format_label as string,
         category: row.category as string,
@@ -100,9 +107,9 @@ export class PublicVisitorRepository {
   }
 
   async scoreOptions(
-    rateCardId: string,
+    defaultRateCardId: string | null,
     targetSegment: string | null,
-    selections: Array<Pick<VisitorSelection, 'formatId' | 'daypart' | 'channel'>>
+    selections: Array<Pick<VisitorSelection, 'rateCardId' | 'formatId' | 'daypart' | 'channel'>>
   ) {
     const { RateCardRepository } = await import('./RateCardRepository');
     const { AudienceRepository } = await import('./AudienceRepository');
@@ -110,19 +117,25 @@ export class PublicVisitorRepository {
 
     const rateCards = new RateCardRepository(this.db);
     const audiences = new AudienceRepository(this.db);
-
-    const card = await this.db.query(
+    const resolvedSelections = selections.flatMap((option) => {
+      const rateCardId = option.rateCardId || defaultRateCardId;
+      return rateCardId ? [{ ...option, rateCardId }] : [];
+    });
+    if (resolvedSelections.length !== selections.length) return null;
+    const rateCardIds = [...new Set(resolvedSelections.map((option) => option.rateCardId))];
+    const activeCards = await this.db.query(
       `SELECT id FROM rate_card
-       WHERE id = $1 AND status = 'ACTIVE'
+       WHERE id = ANY($1::uuid[])
+         AND status = 'ACTIVE'
          AND valid_from <= CURRENT_DATE
          AND (valid_to IS NULL OR valid_to >= CURRENT_DATE)`,
-      [rateCardId]
+      [rateCardIds]
     );
-    if (!card.rows[0]) return null;
+    if (activeCards.rows.length !== rateCardIds.length) return null;
 
-    const results = await Promise.all(selections.map(async (option) => {
+    const results = await Promise.all(resolvedSelections.map(async (option) => {
       const [rateLine, audience] = await Promise.all([
-        rateCards.findLine(rateCardId, option.formatId, option.daypart, option.channel),
+        rateCards.findLine(option.rateCardId, option.formatId, option.daypart, option.channel),
         targetSegment
           ? audiences.findLatest(option.formatId, option.daypart, option.channel, targetSegment)
           : Promise.resolve(null),
@@ -148,35 +161,28 @@ export class PublicVisitorRepository {
     try {
       await client.query('BEGIN');
 
-      let activeRateCardId: string | null = null;
-      if (submission.selections.length) {
-        const rateCard = await client.query(
-          `SELECT id FROM rate_card
-           WHERE id = $1 AND status = 'ACTIVE'
-             AND valid_from <= CURRENT_DATE
-             AND (valid_to IS NULL OR valid_to >= CURRENT_DATE)
-           FOR SHARE`,
-          [submission.rateCardId]
-        );
-        if (!rateCard.rows[0]) {
-          throw new Error('La grille tarifaire active a changé. Rechargez les offres.');
-        }
-        activeRateCardId = rateCard.rows[0].id as string;
-      }
-
       const snapshotLines = [];
       for (const selection of submission.selections) {
+        const rateCardId = selection.rateCardId || submission.rateCardId;
+        if (!rateCardId) {
+          throw new Error('La grille tarifaire active a changé. Rechargez les offres.');
+        }
         const { rows } = await client.query(
-          `SELECT rcl.gross_price, rcl.currency, f.label AS format_label
+          `SELECT rcl.gross_price, rcl.currency, f.label AS format_label,
+                  card.name AS rate_card_name
            FROM rate_card_line rcl
            JOIN format f ON f.id = rcl.format_id
+           JOIN rate_card card ON card.id = rcl.rate_card_id
            WHERE rcl.rate_card_id = $1
              AND rcl.format_id = $2
              AND rcl.daypart = $3
              AND rcl.channel = $4
+             AND card.status = 'ACTIVE'
+             AND card.valid_from <= CURRENT_DATE
+             AND (card.valid_to IS NULL OR card.valid_to >= CURRENT_DATE)
              AND f.is_active = TRUE
-           FOR SHARE OF rcl`,
-          [activeRateCardId, selection.formatId, selection.daypart, selection.channel]
+           FOR SHARE OF rcl, card`,
+          [rateCardId, selection.formatId, selection.daypart, selection.channel]
         );
         if (!rows[0]) {
           throw new Error('Une offre sélectionnée n’est plus disponible. Rechargez les offres.');
@@ -186,6 +192,8 @@ export class PublicVisitorRepository {
         const grossTotal = Math.round(unitPrice * 100) * selection.quantity / 100;
         snapshotLines.push({
           ...selection,
+          rateCardId,
+          rateCardName: rows[0].rate_card_name as string,
           formatLabel: rows[0].format_label as string,
           grossPriceUnit: unitPrice,
           currency: rows[0].currency as string,
@@ -193,6 +201,8 @@ export class PublicVisitorRepository {
         });
       }
 
+      const selectedRateCardIds = [...new Set(snapshotLines.map((line) => line.rateCardId as string))];
+      const activeRateCardId = selectedRateCardIds.length === 1 ? selectedRateCardIds[0] : null;
       const advertiser = await client.query(
         `INSERT INTO advertiser (company_name, sector_code, city)
          VALUES ($1, $2, $3) RETURNING id`,

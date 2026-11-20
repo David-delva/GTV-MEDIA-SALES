@@ -35,7 +35,8 @@ export class PublicVisitorController {
         targetSegment?: unknown;
         options?: unknown;
       };
-      if (typeof body.rateCardId !== 'string' || !UUID_PATTERN.test(body.rateCardId)) {
+      const defaultRateCardId = optionalUuid(body.rateCardId);
+      if (body.rateCardId !== undefined && body.rateCardId !== null && !defaultRateCardId) {
         return next(Errors.validation({ field: 'rateCardId' }));
       }
       if (body.targetSegment !== undefined &&
@@ -52,7 +53,11 @@ export class PublicVisitorController {
           throw Errors.validation({ field: 'options[]' });
         }
         const item = option as Record<string, unknown>;
+        const rateCardId = item.rateCardId === undefined || item.rateCardId === null
+          ? defaultRateCardId
+          : optionalUuid(item.rateCardId);
         if (
+          !rateCardId ||
           typeof item.formatId !== 'string' ||
           !UUID_PATTERN.test(item.formatId) ||
           typeof item.channel !== 'string' ||
@@ -64,6 +69,7 @@ export class PublicVisitorController {
           throw Errors.validation({ field: 'options[]' });
         }
         return {
+          rateCardId,
           formatId: item.formatId,
           daypart: item.daypart,
           channel: item.channel,
@@ -71,11 +77,11 @@ export class PublicVisitorController {
       });
 
       const results = await this.repository.scoreOptions(
-        body.rateCardId,
+        defaultRateCardId,
         typeof body.targetSegment === 'string' ? body.targetSegment : null,
         options
       );
-      if (!results) return next(Errors.notFound('rate_card', body.rateCardId));
+      if (!results) return next(Errors.notFound('rate_card', defaultRateCardId ?? 'selected'));
       res.json({ success: true, data: results });
     } catch (error) {
       next(error);
@@ -91,6 +97,10 @@ export class PublicVisitorController {
       const brief = body.brief as Record<string, unknown> | undefined;
       const contact = body.contact as Record<string, unknown> | undefined;
       const selectionsInput = body.selections;
+      const defaultRateCardId = optionalUuid(body.rateCardId);
+      if (body.rateCardId !== undefined && body.rateCardId !== null && !defaultRateCardId) {
+        return next(Errors.validation({ field: 'rateCardId' }));
+      }
 
       const requiredContact = ['companyName', 'fullName', 'email'];
       const contactMissing = requiredContact.filter(
@@ -141,7 +151,11 @@ export class PublicVisitorController {
         }
         const item = selection as Record<string, unknown>;
         const quantity = Number(item.quantity);
+        const rateCardId = item.rateCardId === undefined || item.rateCardId === null
+          ? defaultRateCardId
+          : optionalUuid(item.rateCardId);
         if (
+          !rateCardId ||
           typeof item.formatId !== 'string' ||
           !UUID_PATTERN.test(item.formatId) ||
           typeof item.daypart !== 'string' ||
@@ -156,27 +170,22 @@ export class PublicVisitorController {
           throw Errors.validation({ field: 'selections[]' });
         }
         return {
+          rateCardId,
           formatId: item.formatId,
           daypart: item.daypart,
           channel: item.channel.trim(),
           quantity,
         };
       });
-      if (new Set(selections.map((item) => `${item.formatId}|${item.daypart}|${item.channel}`)).size !== selections.length) {
+      if (new Set(selections.map((item) => `${item.rateCardId}|${item.formatId}|${item.daypart}|${item.channel}`)).size !== selections.length) {
         return next(Errors.validation({ field: 'selections', message: 'Options en doublon' }));
       }
 
-      const rateCardId = typeof body.rateCardId === 'string' && UUID_PATTERN.test(body.rateCardId)
-        ? body.rateCardId
-        : null;
-      if (selections.length > 0 && !rateCardId) {
-        return next(Errors.validation({ field: 'rateCardId' }));
-      }
       const message = typeof body.message === 'string' ? body.message.trim() : '';
       if (message.length > 2000) return next(Errors.validation({ field: 'message', maxLength: 2000 }));
 
       const submission: VisitorSubmission = {
-        rateCardId,
+        rateCardId: defaultRateCardId,
         brief: {
           objective: brief.objective,
           targetSegment: typeof brief.targetSegment === 'string' ? brief.targetSegment : null,
@@ -259,6 +268,10 @@ function optionalText(value: unknown, maxLength: number): string | null {
   if (typeof value !== 'string') return null;
   const text = value.trim();
   return text ? text.slice(0, maxLength) : null;
+}
+
+function optionalUuid(value: unknown): string | null {
+  return typeof value === 'string' && UUID_PATTERN.test(value) ? value : null;
 }
 
 function optionalDate(value: unknown): string | null | false {

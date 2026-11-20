@@ -43,6 +43,68 @@ const validPayload = {
 };
 
 describe('PublicVisitorController', () => {
+  test('scores options that belong to multiple active rate cards', async () => {
+    const { controller, repository, response, next } = createHarness({
+      scoreOptions: jest.fn().mockResolvedValue([]),
+    });
+    const firstCardId = '30000000-0000-4000-8000-000000000001';
+    const secondCardId = '32000000-0000-4000-8000-000000000001';
+
+    await controller.score(
+      {
+        body: {
+          rateCardId: null,
+          targetSegment: null,
+          options: [
+            { rateCardId: firstCardId, formatId: '20000000-0000-4000-8000-000000000001', daypart: 'DAY', channel: 'DEMO_TV_1' },
+            { rateCardId: secondCardId, formatId: '22000000-0000-4000-8000-000000000001', daypart: 'DAY', channel: 'DEMO_WEB' },
+          ],
+        },
+      } as Request,
+      response as unknown as Response,
+      next as NextFunction
+    );
+
+    expect(repository.scoreOptions).toHaveBeenCalledWith(
+      null,
+      null,
+      expect.arrayContaining([
+        expect.objectContaining({ rateCardId: firstCardId }),
+        expect.objectContaining({ rateCardId: secondCardId }),
+      ])
+    );
+    expect(response.json).toHaveBeenCalledWith({ success: true, data: [] });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  test('accepts a quote selection with its own rate card when there is no single card id', async () => {
+    const { controller, repository, response, next } = createHarness();
+    const rateCardId = '32000000-0000-4000-8000-000000000001';
+    const payload = {
+      ...validPayload,
+      selections: [{
+        rateCardId,
+        formatId: '22000000-0000-4000-8000-000000000001',
+        daypart: 'DAY',
+        channel: 'DEMO_WEB',
+        quantity: 2,
+      }],
+    };
+
+    await controller.submitRequest(
+      { body: payload } as Request,
+      response as unknown as Response,
+      next as NextFunction
+    );
+
+    expect(repository.submit).toHaveBeenCalledWith(expect.objectContaining({
+      rateCardId: null,
+      selections: [expect.objectContaining({ rateCardId })],
+    }));
+    expect(response.status).toHaveBeenCalledWith(201);
+    expect(next).not.toHaveBeenCalled();
+  });
+
   test('accepts a no-account request without budget, audience, or selected rates', async () => {
     const { controller, repository, response, next } = createHarness();
 

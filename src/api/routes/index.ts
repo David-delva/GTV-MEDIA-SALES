@@ -94,6 +94,9 @@ export function buildRouter(db: Pool): Router {
   router.get('/rate-cards/active',         authenticate(db), rateCardCtrl.getActive);
   router.post('/rate-cards',               authenticate(db), authorize('ADMIN'), rateCardCtrl.create);
   router.patch('/rate-cards/:id/activate', authenticate(db), authorize('ADMIN'), rateCardCtrl.activate);
+  router.patch('/rate-cards/:id/default', authenticate(db), authorize('ADMIN'), rateCardCtrl.setDefault);
+  router.patch('/rate-cards/:id/unpublish', authenticate(db), authorize('ADMIN'), rateCardCtrl.unpublish);
+  router.patch('/rate-cards/:id/archive', authenticate(db), authorize('ADMIN'), rateCardCtrl.archive);
 
   // ── Audience ─────────────────────────────────────────────────────────────────
   router.get('/audience/segments/all', authenticate(db), audienceCtrl.allSegments);

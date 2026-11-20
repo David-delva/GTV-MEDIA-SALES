@@ -60,8 +60,10 @@ export function VisitorLandingPage() {
           category,
           label: CATEGORY_LABELS[category] ?? category,
           optionCount: lines.length,
-          startingPrice: Math.min(...lines.map((line) => line.grossPrice)),
-          currency: lines[0].currency,
+          startingPrices: [...new Set(lines.map((line) => line.currency))].map((currency) => ({
+            currency,
+            amount: Math.min(...lines.filter((line) => line.currency === currency).map((line) => line.grossPrice)),
+          })),
           formats: formatIds.map((formatId) => {
             const formatLines = lines.filter((line) => line.formatId === formatId);
             return {
@@ -152,14 +154,14 @@ export function VisitorLandingPage() {
                     <p className="mt-1 text-sm text-slate-500">Chargement des formats disponibles…</p>
                   ) : catalogError ? (
                     <p className="mt-1 text-sm text-slate-600">Le catalogue pourra être consulté dans le parcours campagne.</p>
-                  ) : catalog?.rateCard ? (
+                  ) : catalog?.rateCards.length ? (
                     <p className="mt-1 text-sm text-slate-700">
-                      {catalog.lines.length} option{catalog.lines.length > 1 ? 's' : ''} actuellement renseignée{catalog.lines.length > 1 ? 's' : ''}.
+                      {catalog.lines.length} option{catalog.lines.length > 1 ? 's' : ''} publiées dans {catalog.rateCards.length} grille{catalog.rateCards.length > 1 ? 's' : ''}.
                     </p>
                   ) : (
                     <p className="mt-1 text-sm text-slate-600">Les formats seront présentés par l’équipe GTV.</p>
                   )}
-                  {catalog?.rateCard?.name.includes('DEMO_FICTIF') && (
+                  {catalog?.rateCards.some((card) => card.name.includes('DEMO_FICTIF')) && (
                     <p className="mt-2 text-[11px] font-semibold text-amber-800">Catalogue de démonstration · données fictives</p>
                   )}
                 </div>
@@ -196,7 +198,7 @@ export function VisitorLandingPage() {
             </div>
           ) : (
             <>
-              {catalog?.rateCard?.name.includes('DEMO_FICTIF') && (
+              {catalog?.rateCards.some((card) => card.name.includes('DEMO_FICTIF')) && (
                 <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
                   Aperçu de démonstration : tarifs et données d’audience fictifs, à ne pas utiliser comme grille commerciale réelle.
                 </div>
@@ -245,7 +247,9 @@ export function VisitorLandingPage() {
                         <div>
                           <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">À partir de</p>
                           <p className="mt-0.5 text-lg font-extrabold text-[#0055B8]">
-                            {new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(category.startingPrice)} {category.currency}
+                            {category.startingPrices.map((price) =>
+                              `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(price.amount)} ${price.currency}`
+                            ).join(' · ')}
                           </p>
                           <p className="text-[11px] text-slate-400">par diffusion · tarif indicatif</p>
                         </div>

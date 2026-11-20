@@ -103,6 +103,7 @@ export interface AdminRateCardDto {
   validFrom: string;
   validTo: string | null;
   status: 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
+  isDefault: boolean;
   createdAt: string;
   lines: RateCardLineDto[];
 }
@@ -140,6 +141,12 @@ export const rateCardsApi = {
     request<never>(`/admin/rate-cards/${rateCardId}/lines/${lineId}`, { method: 'DELETE' }),
   activate: (id: string) =>
     request<never>(`/rate-cards/${id}/activate`, { method: 'PATCH' }),
+  setDefault: (id: string) =>
+    request<never>(`/rate-cards/${id}/default`, { method: 'PATCH' }),
+  unpublish: (id: string) =>
+    request<never>(`/rate-cards/${id}/unpublish`, { method: 'PATCH' }),
+  archive: (id: string) =>
+    request<never>(`/rate-cards/${id}/archive`, { method: 'PATCH' }),
 };
 
 // ── Scoring ───────────────────────────────────────────────────────────────────
@@ -148,6 +155,7 @@ export interface ScoringBatchRequestItem {
   formatId: string;
   daypart: import('../../types').Daypart;
   channel: string;
+  rateCardId?: string;
 }
 
 export interface ScoredOptionDto {
@@ -314,6 +322,8 @@ export const adminUsersApi = {
 // ── Espace visiteur public ────────────────────────────────────────────────────
 
 export interface VisitorCatalogLine {
+    rateCardId: string;
+    rateCardName: string;
     formatId: string;
     formatLabel: string;
     category: string;
@@ -326,7 +336,7 @@ export interface VisitorCatalogLine {
 }
 
 export interface VisitorCatalogDto {
-    rateCard: { id: string; name: string; validFrom: string } | null;
+    rateCards: Array<{ id: string; name: string; validFrom: string }>;
     lines: VisitorCatalogLine[];
     segments: string[];
 }
@@ -350,6 +360,7 @@ export interface VisitorRequestPayload {
       consentMarketing: boolean;
     };
     selections: Array<{
+      rateCardId: string;
       formatId: string;
       daypart: string;
       channel: string;
@@ -363,8 +374,10 @@ export interface VisitorTrackedRequest {
     status: string;
     submittedAt: string;
     brief: VisitorRequestPayload['brief'];
-    plan: Array<VisitorRequestPayload['selections'][number] & {
+    plan: Array<Omit<VisitorRequestPayload['selections'][number], 'rateCardId'> & {
+      rateCardId?: string;
       formatLabel: string;
+      rateCardName?: string;
       grossPriceUnit: number;
       grossTotal: number;
       currency: string;
@@ -382,9 +395,9 @@ export interface VisitorInboxItem extends VisitorTrackedRequest {
 export const visitorApi = {
     catalog: () => request<VisitorCatalogDto>('/public/catalog'),
     score: (
-      rateCardId: string,
+      rateCardId: string | null,
       targetSegment: string | null,
-      options: ScoringBatchRequestItem[]
+      options: Array<ScoringBatchRequestItem & { rateCardId: string }>
     ) => request<ScoredOptionDto[]>('/public/scoring/batch', {
       method: 'POST',
       body: JSON.stringify({ rateCardId, targetSegment, options }),

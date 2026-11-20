@@ -69,8 +69,10 @@ export function VisitorRequestTrackingPage() {
   }, [token]);
 
   const status = request ? STATUS_LABELS[request.status] : undefined;
-  const currency = request?.plan[0]?.currency ?? 'XAF';
-  const total = request?.plan.reduce((sum, line) => sum + line.grossTotal, 0) ?? 0;
+  const totalsByCurrency = request?.plan.reduce<Record<string, number>>((totals, line) => {
+    totals[line.currency] = (totals[line.currency] ?? 0) + line.grossTotal;
+    return totals;
+  }, {}) ?? {};
 
   return (
     <VisitorShell>
@@ -139,7 +141,7 @@ export function VisitorRequestTrackingPage() {
                     <div key={`${line.formatId}-${line.daypart}-${index}`} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm">
                       <div className="min-w-0 flex-1">
                         <p className="break-words font-semibold text-slate-700">{line.formatLabel}</p>
-                        <p className="mt-0.5 break-words text-xs text-slate-400">{line.channel} · {line.daypart} · {line.quantity} passage(s)</p>
+                        <p className="mt-0.5 break-words text-xs text-slate-400">{line.channel} · {line.daypart} · {line.quantity} passage(s){line.rateCardName ? ` · ${line.rateCardName}` : ''}</p>
                       </div>
                       <p className="shrink-0 font-mono text-xs font-semibold text-slate-600">{money(line.grossTotal, line.currency)}</p>
                     </div>
@@ -147,7 +149,9 @@ export function VisitorRequestTrackingPage() {
                 </div>
                 <div className="flex flex-wrap justify-between gap-2 border-t border-slate-100 bg-slate-50 px-5 py-4 text-sm">
                   <span className="font-semibold text-slate-500">Total indicatif brut</span>
-                  <span className="font-bold text-slate-800">{money(total, currency)}</span>
+                  <span className="font-bold text-slate-800">
+                    {Object.entries(totalsByCurrency).map(([currency, total]) => money(total, currency)).join(' · ')}
+                  </span>
                 </div>
               </section>
             )}

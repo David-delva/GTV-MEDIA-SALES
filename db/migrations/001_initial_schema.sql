@@ -20,7 +20,7 @@ CREATE TABLE format (
 
 -- -----------------------------------------------------------------------------
 -- RATE_CARD : grille tarifaire versionnée (SCD2)
--- Une seule grille ACTIVE à la fois — contrainte gérée applicativement
+-- Plusieurs grilles peuvent être ACTIVE; la grille par défaut est gérée séparément.
 -- -----------------------------------------------------------------------------
 CREATE TABLE rate_card (
     id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),

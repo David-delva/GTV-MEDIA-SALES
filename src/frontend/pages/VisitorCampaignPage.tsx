@@ -68,8 +68,8 @@ const EMPTY_CONTACT: ContactState = {
   consentMarketing: false,
 };
 
-const optionKey = (line: Pick<VisitorCatalogLine, 'formatId' | 'daypart' | 'channel'>) =>
-  `${line.formatId}|${line.daypart}|${line.channel}`;
+const optionKey = (line: Pick<VisitorCatalogLine, 'formatId' | 'daypart' | 'channel'> & { rateCardId?: string }) =>
+  `${line.rateCardId ?? ''}|${line.formatId}|${line.daypart}|${line.channel}`;
 
 export function VisitorCampaignPage() {
   const navigate = useNavigate();
@@ -121,6 +121,7 @@ export function VisitorCampaignPage() {
         const matchesCategory = activeCategory === 'TOUT' || line.category === activeCategory;
         const searchableText = [
           catalogProductName(line.formatLabel),
+          line.rateCardName,
           catalogChannelName(line.channel),
           catalogDaypartName(line.daypart),
         ].join(' ').toLocaleLowerCase('fr');
@@ -128,30 +129,36 @@ export function VisitorCampaignPage() {
       })
       .sort((left, right) =>
         CATEGORY_ORDER.indexOf(left.category) - CATEGORY_ORDER.indexOf(right.category)
+        || left.currency.localeCompare(right.currency)
         || left.grossPrice - right.grossPrice
       );
   }, [activeCategory, catalog, productSearch]);
 
-  const indicativeTotal = selectedLines.reduce(
-    (sum, item) => sum + Math.round(item.line.grossPrice * 100) * item.quantity / 100,
-    0
-  );
+  const indicativeTotals = selectedLines.reduce<Record<string, number>>((totals, item) => {
+    totals[item.line.currency] = (totals[item.line.currency] ?? 0)
+      + Math.round(item.line.grossPrice * 100) * item.quantity / 100;
+    return totals;
+  }, {});
+  const indicativeTotalLabel = Object.entries(indicativeTotals)
+    .map(([currency, total]) => formatMoney(total, currency))
+    .join(' + ');
   const scoreByKey = new Map(
     scores.map((item) => [optionKey(item.option), item.scoring])
   );
 
   const runScoring = async () => {
     setError(null);
-    if (!catalog?.rateCard || selectedLines.length === 0) {
+    if (!catalog?.rateCards.length || selectedLines.length === 0) {
       setStep(3);
       return;
     }
     setScoring(true);
     try {
       const result = await visitorApi.score(
-        catalog.rateCard.id,
+        null,
         brief.targetSegment || null,
         selectedLines.map(({ line }) => ({
+          rateCardId: line.rateCardId,
           formatId: line.formatId,
           daypart: line.daypart as Daypart,
           channel: line.channel,
@@ -194,8 +201,9 @@ export function VisitorCampaignPage() {
     }
     setSubmitting(true);
     setError(null);
+    const selectedRateCardIds = [...new Set(selectedLines.map(({ line }) => line.rateCardId))];
     const payload: VisitorRequestPayload = {
-      rateCardId: selectedLines.length ? catalog?.rateCard?.id ?? null : null,
+      rateCardId: selectedRateCardIds.length === 1 ? selectedRateCardIds[0] : null,
       brief: {
         objective: brief.objective,
         targetSegment: brief.targetSegment || null,
@@ -213,6 +221,7 @@ export function VisitorCampaignPage() {
         consentMarketing: contact.consentMarketing,
       },
       selections: selectedLines.map(({ line, quantity }) => ({
+        rateCardId: line.rateCardId,
         formatId: line.formatId,
         daypart: line.daypart,
         channel: line.channel,
@@ -340,9 +349,9 @@ export function VisitorCampaignPage() {
               </div>
             )}
 
-            {!loadingCatalog && catalog?.rateCard && (
+            {!loadingCatalog && catalog && catalog.rateCards.length > 0 && (
               <p className="mt-5 text-xs text-slate-400">
-                Grille tarifaire consultée : {catalog.rateCard.name} · valide depuis le {formatDate(catalog.rateCard.validFrom)}
+                {catalog.rateCards.length} grille{catalog.rateCards.length > 1 ? 's' : ''} tarifaire{catalog.rateCards.length > 1 ? 's' : ''} publiée{catalog.rateCards.length > 1 ? 's' : ''} dans le catalogue.
               </p>
             )}
             {catalogWarning && (
@@ -379,7 +388,7 @@ export function VisitorCampaignPage() {
                 <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">Choisissez vos espaces média</h2>
                 <p className="mt-2 text-sm text-slate-500">Comparez les formats, les périodes et les tarifs avant de composer votre demande.</p>
               </div>
-              {catalog?.rateCard?.name.includes('DEMO_FICTIF') && (
+              {catalog?.rateCards.some((card) => card.name.includes('DEMO_FICTIF')) && (
                 <span className="inline-flex w-fit items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800">
                   <span className="h-2 w-2 rounded-full bg-amber-500" />
                   Boutique démo · tarifs fictifs
@@ -392,7 +401,7 @@ export function VisitorCampaignPage() {
                 <SectionHeading number="01" title="Offres disponibles" description="Chargement du catalogue publicitaire…" />
                 <LoadingMessage text="Chargement des formats disponibles…" />
               </div>
-            ) : !catalog?.rateCard || catalog.lines.length === 0 ? (
+            ) : !catalog || catalog.rateCards.length === 0 || catalog.lines.length === 0 ? (
               <div className="surface-card p-5 sm:p-7">
                 <SectionHeading number="01" title="Offres disponibles" description="Vous pouvez transmettre votre brief même sans choisir de format." />
                 <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
@@ -408,7 +417,7 @@ export function VisitorCampaignPage() {
                   <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                     <p className="text-sm text-slate-500">
                       <span className="font-bold text-slate-800">{catalog.lines.length} offres</span>
-                      {' · '}Grille valide depuis le {formatDate(catalog.rateCard.validFrom)}
+                      {' · '}{catalog.rateCards.length} grilles publiées
                     </p>
                     <label className="relative w-full sm:w-64">
                       <span className="sr-only">Rechercher un format</span>
@@ -473,6 +482,7 @@ export function VisitorCampaignPage() {
                                     {catalogChannelName(line.channel)} · {catalogDaypartName(line.daypart)}
                                     {line.durationSec ? ` · ${line.durationSec} s` : ''}
                                   </p>
+                                  <p className="mt-1 text-[11px] text-slate-400">{line.rateCardName}</p>
                                 </div>
                                 {quantity > 0 && <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">Dans le panier</span>}
                               </div>
@@ -537,7 +547,7 @@ export function VisitorCampaignPage() {
                           <div key={optionKey(line)} className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
                             <div className="min-w-0">
                               <p className="truncate text-sm font-bold text-slate-800">{catalogProductName(line.formatLabel)}</p>
-                              <p className="mt-1 text-xs text-slate-500">{quantity} × {formatMoney(line.grossPrice, line.currency)}</p>
+                              <p className="mt-1 text-xs text-slate-500">{line.rateCardName} · {quantity} × {formatMoney(line.grossPrice, line.currency)}</p>
                             </div>
                             <button type="button" onClick={() => updateQuantity(line, '0')} className="shrink-0 text-xs font-semibold text-slate-400 hover:text-red-600" aria-label={`Retirer ${catalogProductName(line.formatLabel)} du panier`}>
                               Retirer
@@ -547,7 +557,7 @@ export function VisitorCampaignPage() {
                       </div>
                       <div className="mt-4 flex items-end justify-between border-t border-slate-100 pt-4">
                         <span className="text-sm font-semibold text-slate-600">Total indicatif</span>
-                        <span className="text-lg font-extrabold text-slate-900">{formatMoney(indicativeTotal, selectedLines[0].line.currency)}</span>
+                        <span className="text-lg font-extrabold text-slate-900">{indicativeTotalLabel}</span>
                       </div>
                     </>
                   )}
@@ -612,7 +622,7 @@ export function VisitorCampaignPage() {
                     Total brut indicatif · {selectedLines.length} option{selectedLines.length > 1 ? 's' : ''}
                   </span>
                   <span className="text-base font-bold text-slate-900">
-                    {formatMoney(indicativeTotal, selectedLines[0].line.currency)}
+                    {indicativeTotalLabel}
                   </span>
                 </div>
               </div>
@@ -691,7 +701,7 @@ export function VisitorCampaignPage() {
               {selectedLines.length > 0 && (
                 <div className="mt-2 flex items-center justify-between gap-3 text-sm">
                   <span className="text-slate-500">Total indicatif brut</span>
-                  <span className="font-bold text-slate-800">{formatMoney(indicativeTotal, selectedLines[0].line.currency)}</span>
+                  <span className="font-bold text-slate-800">{indicativeTotalLabel}</span>
                 </div>
               )}
               <p className="mt-3 text-xs leading-5 text-slate-400">

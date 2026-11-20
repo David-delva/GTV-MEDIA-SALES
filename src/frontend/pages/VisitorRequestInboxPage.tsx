@@ -112,7 +112,7 @@ export function VisitorRequestInboxContent() {
                   item.status,
                   item.objective ?? item.brief.objective,
                   item.submittedAt?.slice(0, 10),
-                  item.plan.reduce((total, line) => total + line.grossTotal, 0),
+                  totalByCurrencyLabel(item.plan),
                 ]))}
                 className="h-11 rounded-lg border border-slate-200 px-3 text-xs font-bold text-[#0055B8] hover:bg-[#eef3fb] disabled:opacity-40">
                 Exporter {visibleRequests.length} demande(s)
@@ -123,9 +123,6 @@ export function VisitorRequestInboxContent() {
               <div className="surface-card p-10 text-center text-sm text-slate-500">Aucune demande ne correspond à ces filtres.</div>
             ) : <div className="space-y-4">
             {visibleRequests.map((item) => {
-              const totalCents = item.plan.reduce((sum, line) => sum + Math.round(line.grossTotal * 100), 0);
-              const total = totalCents / 100;
-              const currency = item.plan[0]?.currency ?? 'XAF';
               return (
                 <article key={item.reference} className="surface-card p-5">
                   <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
@@ -141,7 +138,9 @@ export function VisitorRequestInboxContent() {
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
                       {item.plan.length > 0 && (
-                        <span className="text-sm font-bold text-slate-700">{money(total, currency)}</span>
+                        <span className="text-sm font-bold text-slate-700">
+                          {totalByCurrencyLabel(item.plan)}
+                        </span>
                       )}
                       <select
                         aria-label={`Statut de la demande ${item.reference}`}
@@ -162,7 +161,7 @@ export function VisitorRequestInboxContent() {
                       <ul className="mt-2 flex flex-wrap gap-2">
                         {item.plan.map((line, index) => (
                           <li key={`${line.formatId}-${index}`} className="rounded-md bg-slate-50 px-2.5 py-1.5 text-xs text-slate-600">
-                            {line.formatLabel} · {line.quantity} passage(s)
+                            {line.formatLabel} · {line.quantity} passage(s){line.rateCardName ? ` · ${line.rateCardName}` : ''}
                           </li>
                         ))}
                       </ul>
@@ -180,4 +179,12 @@ export function VisitorRequestInboxContent() {
 
 function money(value: number, currency: string) {
   return `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(value)} ${currency}`;
+}
+
+function totalByCurrencyLabel(lines: VisitorInboxItem['plan']) {
+  const totals = lines.reduce<Record<string, number>>((result, line) => {
+    result[line.currency] = (result[line.currency] ?? 0) + line.grossTotal;
+    return result;
+  }, {});
+  return Object.entries(totals).map(([currency, total]) => money(total, currency)).join(' · ');
 }

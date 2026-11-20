@@ -82,7 +82,8 @@ export function AdminPage() {
 
   useEffect(() => { void loadData(); }, [loadData]);
 
-  const activeRateCard = rateCards.find((card) => card.status === 'ACTIVE');
+  const activeRateCards = rateCards.filter((card) => card.status === 'ACTIVE');
+  const activeRateCard = activeRateCards.find((card) => card.isDefault) ?? activeRateCards[0];
   const pendingRequests = requests.filter((request) =>
     !['ACCEPTE', 'REFUSE', 'EXPIRE', 'CLOS'].includes(request.status)
   ).length;
@@ -130,6 +131,7 @@ export function AdminPage() {
                 clientsCount={activeClients}
                 projects={projects}
                 rateCard={activeRateCard}
+                activeRateCardsCount={activeRateCards.length}
                 requestsCount={pendingRequests}
                 loadedRequests={requests.length}
                 onSelect={setTab}
@@ -181,6 +183,7 @@ function OverviewPanel({
   clientsCount,
   projects,
   rateCard,
+  activeRateCardsCount,
   requestsCount,
   loadedRequests,
   onSelect,
@@ -190,6 +193,7 @@ function OverviewPanel({
   clientsCount: number;
   projects: ProjectDto[];
   rateCard?: AdminRateCardDto;
+  activeRateCardsCount: number;
   requestsCount: number;
   loadedRequests: number;
   onSelect: (tab: AdminTab) => void;
@@ -204,12 +208,13 @@ function OverviewPanel({
     { label: 'Clients actifs', value: clientsCount, tab: 'clients' as AdminTab, hint: 'Annonceurs disponibles pour les nouveaux projets' },
     { label: 'Projets ouverts', value: projectCounts.open, tab: 'projects' as AdminTab, hint: `${projectCounts.submitted} soumis à traiter` },
     { label: 'Demandes à suivre', value: requestsCount, tab: 'requests' as AdminTab, hint: `${loadedRequests} demandes récentes chargées` },
-    { label: 'Grille en vigueur', value: rateCard ? 'Active' : 'Aucune', tab: 'rates' as AdminTab, hint: rateCard?.name ?? 'Créez et renseignez une grille' },
+    { label: 'Grilles publiées', value: activeRateCardsCount, tab: 'rates' as AdminTab, hint: 'Visibles dans le catalogue public' },
+    { label: 'Grille par défaut', value: rateCard ? 'Active' : 'Aucune', tab: 'rates' as AdminTab, hint: rateCard?.name ?? 'Choisissez une grille pour les projets internes' },
   ];
 
   return (
     <section aria-label="Vue d’ensemble" className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         {metrics.map((metric) => (
           <button key={metric.label} type="button" onClick={() => onSelect(metric.tab)} className="surface-card min-w-0 p-5 text-left transition hover:-translate-y-0.5 hover:border-[#0055B8]/30 hover:shadow-md">
             <p className="text-xs font-bold uppercase tracking-wide text-slate-400">{metric.label}</p>
@@ -237,12 +242,13 @@ function OverviewPanel({
               <h2 className="mt-3 text-lg font-bold text-slate-900">{rateCard.name}</h2>
               <p className="mt-1 text-sm text-slate-500">Valide depuis le {formatDate(rateCard.validFrom)}</p>
               <p className="mt-4 text-sm font-semibold text-slate-700">{rateCard.lines.length} ligne(s) tarifaire(s)</p>
+              <p className="mt-1 text-xs font-semibold text-[#0055B8]">{activeRateCardsCount} grille(s) publiée(s) au total</p>
             </>
           ) : (
             <p className="mt-3 text-sm text-slate-500">Aucune grille active n’est disponible.</p>
           )}
           <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
-            Vérifiez les montants et leur période de validité avant activation. La grille active est utilisée par le catalogue public.
+            La grille par défaut sert aux projets internes; toutes les grilles actives et valides sont proposées dans le catalogue public.
           </p>
         </section>
       </div>
@@ -287,8 +293,14 @@ function RateCardsPanel({
   const [activatingId, setActivatingId] = useState<string | null>(null);
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
   const [deletingLineId, setDeletingLineId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'DRAFT' | 'ACTIVE' | 'ARCHIVED'>('all');
 
   const selectedCard = cards.find((card) => card.id === selectedId);
+  const visibleCards = cards.filter((card) => {
+    const matchesSearch = card.name.toLocaleLowerCase('fr').includes(search.trim().toLocaleLowerCase('fr'));
+    return matchesSearch && (statusFilter === 'all' || card.status === statusFilter);
+  });
 
   useEffect(() => {
     if (!selectedId || !cards.some((card) => card.id === selectedId)) {
@@ -378,14 +390,55 @@ function RateCardsPanel({
   };
 
   const activate = async (card: AdminRateCardDto) => {
-    if (!window.confirm(`Activer « ${card.name} » ? La grille actuellement active sera archivée.`)) return;
+    if (!window.confirm(`Publier « ${card.name} » dans le catalogue ? Les autres grilles publiées resteront actives.`)) return;
     onError(null);
     setActivatingId(card.id);
     try {
       await rateCardsApi.activate(card.id);
-      await onChanged(`La grille « ${card.name} » est maintenant active.`);
+      await onChanged(`La grille « ${card.name} » est maintenant publiée.`);
     } catch (error) {
       onError(error instanceof Error ? error.message : 'Impossible d’activer cette grille.');
+    } finally {
+      setActivatingId(null);
+    }
+  };
+
+  const setDefault = async (card: AdminRateCardDto) => {
+    onError(null);
+    setActivatingId(card.id);
+    try {
+      await rateCardsApi.setDefault(card.id);
+      await onChanged(`« ${card.name} » est la grille par défaut pour les projets internes.`);
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Impossible de définir la grille par défaut.');
+    } finally {
+      setActivatingId(null);
+    }
+  };
+
+  const unpublish = async (card: AdminRateCardDto) => {
+    if (!window.confirm(`Retirer « ${card.name} » du catalogue public ? Elle redeviendra modifiable en brouillon.`)) return;
+    onError(null);
+    setActivatingId(card.id);
+    try {
+      await rateCardsApi.unpublish(card.id);
+      await onChanged(`La grille « ${card.name} » a été retirée du catalogue.`);
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Impossible de retirer cette grille du catalogue.');
+    } finally {
+      setActivatingId(null);
+    }
+  };
+
+  const archive = async (card: AdminRateCardDto) => {
+    if (!window.confirm(`Archiver « ${card.name} » ? Elle ne sera plus publiée, mais son historique sera conservé.`)) return;
+    onError(null);
+    setActivatingId(card.id);
+    try {
+      await rateCardsApi.archive(card.id);
+      await onChanged(`La grille « ${card.name} » a été archivée.`);
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Impossible d’archiver cette grille.');
     } finally {
       setActivatingId(null);
     }
@@ -413,8 +466,18 @@ function RateCardsPanel({
 
       <div className="grid items-start gap-5 xl:grid-cols-[1fr_1.15fr]">
         <div className="space-y-3">
-          {cards.length === 0 && <div className="surface-card p-8 text-center text-sm text-slate-500">Aucune grille n’a encore été créée.</div>}
-          {cards.map((card) => (
+          <div className="surface-card grid gap-2 p-3 sm:grid-cols-[1fr_auto]">
+            <label className="sr-only" htmlFor="admin-rate-card-search">Rechercher une grille</label>
+            <input id="admin-rate-card-search" type="search" value={search} onChange={(event) => setSearch(event.target.value)} className="form-control" placeholder="Rechercher une grille…" />
+            <select aria-label="Filtrer les grilles par statut" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)} className="form-control sm:w-auto">
+              <option value="all">Tous les statuts</option><option value="ACTIVE">Publiées</option><option value="DRAFT">Brouillons</option><option value="ARCHIVED">Archivées</option>
+            </select>
+          </div>
+          {cards.length === 0 ? (
+            <div className="surface-card p-8 text-center text-sm text-slate-500">Aucune grille n’a encore été créée.</div>
+          ) : visibleCards.length === 0 ? (
+            <div className="surface-card p-8 text-center text-sm text-slate-500">Aucune grille ne correspond à ces filtres.</div>
+          ) : visibleCards.map((card) => (
             <article key={card.id} className={`surface-card min-w-0 p-4 sm:p-5 ${selectedId === card.id ? 'border-[#0055B8]/40 ring-1 ring-[#0055B8]/10' : ''}`}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <button type="button" onClick={() => { setEditingLineId(null); setSelectedId(card.id); }} className="min-w-0 text-left">
@@ -422,19 +485,24 @@ function RateCardsPanel({
                   <span className="mt-1 block text-xs text-slate-500">
                     Du {formatDate(card.validFrom)}{card.validTo ? ` au ${formatDate(card.validTo)}` : ' · sans date de fin'} · {card.lines.length} ligne(s)
                   </span>
+                  {card.isDefault && <span className="mt-1 inline-block text-[11px] font-bold text-[#0055B8]">Par défaut pour les projets internes</span>}
                 </button>
                 <StatusBadge status={card.status} />
               </div>
-              {card.status === 'DRAFT' && (
-                <button
-                  type="button"
-                  disabled={!card.lines.length || activatingId !== null}
-                  onClick={() => void activate(card)}
-                  className="mt-4 h-9 rounded-lg border border-[#0055B8]/25 px-3 text-xs font-bold text-[#0055B8] hover:bg-[#eef3fb] disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {activatingId === card.id ? 'Activation…' : card.lines.length ? 'Activer cette grille' : 'Ajoutez une ligne pour activer'}
-                </button>
-              )}
+              <div className="mt-3 flex flex-wrap gap-2">
+                {card.status !== 'ACTIVE' && (
+                  <button type="button" disabled={!card.lines.length || activatingId !== null} onClick={() => void activate(card)} className="h-9 rounded-lg border border-[#0055B8]/25 px-3 text-xs font-bold text-[#0055B8] hover:bg-[#eef3fb] disabled:cursor-not-allowed disabled:opacity-40">
+                    {activatingId === card.id ? 'Publication…' : card.status === 'ARCHIVED' ? 'Republier' : card.lines.length ? 'Publier cette grille' : 'Ajoutez une ligne pour publier'}
+                  </button>
+                )}
+                {card.status === 'ACTIVE' && (
+                  <>
+                    {!card.isDefault && <button type="button" disabled={activatingId !== null} onClick={() => void setDefault(card)} className="h-9 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">Définir par défaut</button>}
+                    <button type="button" disabled={activatingId !== null} onClick={() => void unpublish(card)} className="h-9 rounded-lg border border-amber-200 px-3 text-xs font-bold text-amber-800 hover:bg-amber-50 disabled:opacity-50">Retirer du catalogue</button>
+                  </>
+                )}
+                {card.status !== 'ARCHIVED' && <button type="button" disabled={activatingId !== null} onClick={() => void archive(card)} className="h-9 rounded-lg border border-red-100 px-3 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-50">Archiver</button>}
+              </div>
             </article>
           ))}
         </div>
@@ -449,6 +517,11 @@ function RateCardsPanel({
           </div>
           {selectedCard && (
             <>
+            {selectedCard.status !== 'DRAFT' && (
+              <p className="mt-4 rounded-lg bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">
+                Les tarifs publiés ou archivés sont en lecture seule. Retirez une grille publiée du catalogue pour la modifier en brouillon.
+              </p>
+            )}
               {selectedCard.status === 'DRAFT' && (
                 <form onSubmit={(event) => void addLine(event)} className="mt-5 grid gap-3 sm:grid-cols-2">
                   <label className="text-xs font-bold text-slate-600 sm:col-span-2">
@@ -533,7 +606,7 @@ function RateCardsPanel({
         </section>
       </div>
       <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
-        Une grille active est immédiatement publiée dans le catalogue visiteur; elle archive la précédente. Les tarifs de démonstration restent fictifs.
+        Plusieurs grilles actives peuvent être publiées en même temps. Choisissez une grille par défaut pour les projets internes; les devis visiteurs conservent la grille de chaque ligne tarifaire.
       </p>
     </section>
   );

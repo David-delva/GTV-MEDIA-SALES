@@ -168,6 +168,46 @@ export class RateCardController {
       next(err);
     }
   };
+
+  setDefault = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.params;
+      if (!UUID_PATTERN.test(id)) return next(Errors.validation({ field: 'id' }));
+      const result = await this.repo.setDefault(id);
+      if (result === 'NOT_FOUND') return next(Errors.notFound('rate_card', id));
+      if (result === 'NOT_ACTIVE') {
+        return next(Errors.validation({ message: 'Seule une grille active et valide peut être définie par défaut.' }));
+      }
+      res.json({ success: true } satisfies ApiResponse<never>);
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  unpublish = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    await this.changePublicationStatus(req, res, next, () => this.repo.unpublish(req.params.id));
+  };
+
+  archive = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    await this.changePublicationStatus(req, res, next, () => this.repo.archive(req.params.id));
+  };
+
+  private async changePublicationStatus(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+    change: () => Promise<'NOT_FOUND' | 'OK'>
+  ): Promise<void> {
+    try {
+      const { id } = req.params;
+      if (!UUID_PATTERN.test(id)) return next(Errors.validation({ field: 'id' }));
+      const result = await change();
+      if (result === 'NOT_FOUND') return next(Errors.notFound('rate_card', id));
+      res.json({ success: true } satisfies ApiResponse<never>);
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 function parseDate(value: unknown): string | null {

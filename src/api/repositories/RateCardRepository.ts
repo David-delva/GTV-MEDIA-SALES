@@ -13,6 +13,7 @@ export interface AdminRateCard {
   validFrom: string;
   validTo: string | null;
   status: 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
+  isDefault: boolean;
   createdAt: string;
   lines: RateCardLine[];
 }
@@ -28,6 +29,7 @@ export class RateCardRepository {
        WHERE status = 'ACTIVE'
          AND valid_from <= $1
          AND (valid_to IS NULL OR valid_to >= $1)
+       ORDER BY is_default DESC, valid_from DESC, created_at DESC
        LIMIT 1`,
       [atDate]
     );
@@ -53,7 +55,7 @@ export class RateCardRepository {
       `SELECT id, name,
               to_char(valid_from, 'YYYY-MM-DD') AS valid_from,
               CASE WHEN valid_to IS NULL THEN NULL ELSE to_char(valid_to, 'YYYY-MM-DD') END AS valid_to,
-              status, created_at
+              status, is_default, created_at
        FROM rate_card
        ORDER BY created_at DESC`
     );
@@ -82,6 +84,7 @@ export class RateCardRepository {
       validFrom: card.valid_from as string,
       validTo: card.valid_to as string | null,
       status: card.status as AdminRateCard['status'],
+      isDefault: card.is_default as boolean,
       createdAt: String(card.created_at),
       lines: linesByCard.get(card.id as string) ?? [],
     }));
@@ -208,18 +211,14 @@ export class RateCardRepository {
     return rowCount === 1;
   }
 
-  /**
-   * Active une grille : archive l'ancienne, active la nouvelle.
-   * POURQUOI une transaction : les deux opérations sont atomiques.
-   * Si l'une échoue, on ne se retrouve pas sans grille active.
-   */
+  /** Publie une grille sans désactiver les autres grilles actives. */
   async activate(rateCardId: string): Promise<'NOT_FOUND' | 'EMPTY' | 'INVALID_PERIOD' | 'OK'> {
     const client = await this.db.connect();
     try {
       await client.query('BEGIN');
       await client.query('LOCK TABLE rate_card IN SHARE ROW EXCLUSIVE MODE');
       const { rows: targetRows } = await client.query(
-        `SELECT id,
+        `SELECT id, status,
                 (valid_from <= CURRENT_DATE AND (valid_to IS NULL OR valid_to >= CURRENT_DATE)) AS valid
          FROM rate_card
          WHERE id = $1
@@ -245,17 +244,109 @@ export class RateCardRepository {
         return 'INVALID_PERIOD';
       }
 
-      // Archive toutes les grilles actives existantes
-      await client.query(
-        `UPDATE rate_card SET status = 'ARCHIVED', valid_to = NOW()
-         WHERE status = 'ACTIVE' AND id <> $1`,
+      const { rows: defaults } = await client.query(
+        `SELECT id FROM rate_card WHERE is_default = TRUE AND id <> $1 LIMIT 1`,
         [rateCardId]
       );
-      // Active la nouvelle
+      const isDefault = targetRows[0].status === 'ACTIVE'
+        ? undefined
+        : defaults.length === 0;
       await client.query(
-        `UPDATE rate_card SET status = 'ACTIVE' WHERE id = $1`,
+        `UPDATE rate_card
+         SET status = 'ACTIVE',
+             is_default = COALESCE($2, is_default)
+         WHERE id = $1`,
+        [rateCardId, isDefault]
+      );
+      await client.query('COMMIT');
+      return 'OK';
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async setDefault(rateCardId: string): Promise<'NOT_FOUND' | 'NOT_ACTIVE' | 'OK'> {
+    const client = await this.db.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('LOCK TABLE rate_card IN SHARE ROW EXCLUSIVE MODE');
+      const { rows } = await client.query(
+        `SELECT id FROM rate_card
+         WHERE id = $1
+           AND status = 'ACTIVE'
+           AND valid_from <= CURRENT_DATE
+           AND (valid_to IS NULL OR valid_to >= CURRENT_DATE)
+         FOR UPDATE`,
         [rateCardId]
       );
+      if (!rows[0]) {
+        const { rows: existing } = await client.query(
+          `SELECT id FROM rate_card WHERE id = $1`,
+          [rateCardId]
+        );
+        await client.query('ROLLBACK');
+        return existing[0] ? 'NOT_ACTIVE' : 'NOT_FOUND';
+      }
+
+      await client.query(`UPDATE rate_card SET is_default = FALSE WHERE is_default = TRUE`);
+      await client.query(`UPDATE rate_card SET is_default = TRUE WHERE id = $1`, [rateCardId]);
+      await client.query('COMMIT');
+      return 'OK';
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async unpublish(rateCardId: string): Promise<'NOT_FOUND' | 'OK'> {
+    return this.setInactive(rateCardId, 'DRAFT');
+  }
+
+  async archive(rateCardId: string): Promise<'NOT_FOUND' | 'OK'> {
+    return this.setInactive(rateCardId, 'ARCHIVED');
+  }
+
+  private async setInactive(
+    rateCardId: string,
+    status: 'DRAFT' | 'ARCHIVED'
+  ): Promise<'NOT_FOUND' | 'OK'> {
+    const client = await this.db.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('LOCK TABLE rate_card IN SHARE ROW EXCLUSIVE MODE');
+      const { rows } = await client.query(
+        `SELECT id, is_default FROM rate_card WHERE id = $1 FOR UPDATE`,
+        [rateCardId]
+      );
+      if (!rows[0]) {
+        await client.query('ROLLBACK');
+        return 'NOT_FOUND';
+      }
+
+      await client.query(
+        `UPDATE rate_card SET status = $2, is_default = FALSE WHERE id = $1`,
+        [rateCardId, status]
+      );
+      if (rows[0].is_default) {
+        await client.query(
+          `UPDATE rate_card
+           SET is_default = TRUE
+           WHERE id = (
+             SELECT id FROM rate_card
+             WHERE status = 'ACTIVE'
+               AND valid_from <= CURRENT_DATE
+               AND (valid_to IS NULL OR valid_to >= CURRENT_DATE)
+             ORDER BY valid_from DESC, created_at DESC
+             LIMIT 1
+           )`
+        );
+      }
+
       await client.query('COMMIT');
       return 'OK';
     } catch (err) {
