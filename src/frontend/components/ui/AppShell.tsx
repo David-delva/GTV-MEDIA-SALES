@@ -1,13 +1,15 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 
 export function GtvLogo({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-2 sm:gap-3">
-      <div className="gtv-mark" aria-hidden="true">
-        {Array.from({ length: 9 }).map((_, i) => <span key={i} />)}
-      </div>
+      <img
+        src="/images/Logo_GabonTV.png"
+        alt={compact ? 'Logo Gabon Télévision' : ''}
+        className={`gtv-logo-image${compact ? ' gtv-logo-image--compact' : ''}`}
+      />
       {!compact && (
         <div className="leading-tight">
           <div className="text-[13px] font-bold tracking-tight text-slate-900 sm:text-[15px]">GTV Media Sales</div>
@@ -30,10 +32,15 @@ export function AppShell({
   eyebrow?: string;
 }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const onProjects = location.pathname.startsWith('/projects');
   const onRequests = location.pathname.startsWith('/demandes-visiteurs');
   const onAdmin = location.pathname.startsWith('/admin');
+  const handleLogout = () => {
+    logout();
+    navigate('/', { replace: true });
+  };
 
   return (
     <div className="gtv-shell">
@@ -86,7 +93,7 @@ export function AppShell({
           </div>
           <button
             type="button"
-            onClick={logout}
+            onClick={handleLogout}
             className="ml-1 rounded-lg border border-slate-200 px-2.5 py-2 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 sm:px-3"
           >
             Quitter

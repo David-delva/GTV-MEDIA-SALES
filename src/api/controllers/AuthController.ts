@@ -23,7 +23,7 @@ export class AuthController {
       }
 
       const { rows } = await this.db.query(
-        `SELECT id, email, name, role, password_hash
+        `SELECT id, email, name, role, password_hash, password_version
          FROM "user" WHERE lower(email) = $1 AND is_active = TRUE LIMIT 1`,
         [email.trim().toLowerCase()]
       );
@@ -51,7 +51,11 @@ export class AuthController {
         role:  user.role,
       };
 
-      const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '8h' });
+      const token = jwt.sign(
+        { ...payload, tokenVersion: Number(user.password_version) },
+        JWT_SECRET,
+        { expiresIn: '8h' }
+      );
 
       res.json({
         success: true,

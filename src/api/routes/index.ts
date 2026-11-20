@@ -18,6 +18,8 @@ import { PublicVisitorController } from '../controllers/PublicVisitorController'
 import { PublicVisitorRepository } from '../repositories/PublicVisitorRepository';
 import { AdminUserController } from '../controllers/AdminUserController';
 import { AdminUserRepository } from '../repositories/AdminUserRepository';
+import { AdminClientController } from '../controllers/AdminClientController';
+import { AdminClientRepository } from '../repositories/AdminClientRepository';
 
 export function buildRouter(db: Pool): Router {
   const router = Router();
@@ -35,6 +37,7 @@ export function buildRouter(db: Pool): Router {
   const audienceCtrl = new AudienceController(audienceRepo);
   const visitorCtrl = new PublicVisitorController(new PublicVisitorRepository(db));
   const adminUserCtrl = new AdminUserController(new AdminUserRepository(db));
+  const adminClientCtrl = new AdminClientController(new AdminClientRepository(db));
 
   // ── Auth (public) ────────────────────────────────────────────────────────────
   router.post('/auth/login', authCtrl.login);
@@ -43,6 +46,12 @@ export function buildRouter(db: Pool): Router {
   router.get('/admin/users', authenticate(db), authorize('ADMIN'), adminUserCtrl.list);
   router.post('/admin/users', authenticate(db), authorize('ADMIN'), adminUserCtrl.create);
   router.patch('/admin/users/:id/active', authenticate(db), authorize('ADMIN'), adminUserCtrl.setActive);
+  router.patch('/admin/users/:id/role', authenticate(db), authorize('ADMIN'), adminUserCtrl.setRole);
+  router.patch('/admin/users/:id/password', authenticate(db), authorize('ADMIN'), adminUserCtrl.resetPassword);
+  router.get('/admin/clients', authenticate(db), authorize('ADMIN'), adminClientCtrl.list);
+  router.post('/admin/clients', authenticate(db), authorize('ADMIN'), adminClientCtrl.create);
+  router.patch('/admin/clients/:id', authenticate(db), authorize('ADMIN'), adminClientCtrl.update);
+  router.patch('/admin/clients/:id/active', authenticate(db), authorize('ADMIN'), adminClientCtrl.setActive);
   router.get('/admin/rate-cards', authenticate(db), authorize('ADMIN'), rateCardCtrl.listAll);
   router.post('/admin/rate-cards/:id/lines', authenticate(db), authorize('ADMIN'), rateCardCtrl.addLine);
   router.patch('/admin/rate-cards/:id/lines/:lineId', authenticate(db), authorize('ADMIN'), rateCardCtrl.updateLine);
@@ -93,11 +102,14 @@ export function buildRouter(db: Pool): Router {
   router.post('/scoring',       authenticate(db), authorize('COMMERCIAL', 'ADMIN'), scoringCtrl.score);
   router.post('/scoring/batch', authenticate(db), authorize('COMMERCIAL', 'ADMIN'), scoringCtrl.scoreBatch);
 
+  // ── Suivi commercial des projets ─────────────────────────────────────────────
+  router.get('/projects/follow-ups', authenticate(db), authorize('COMMERCIAL', 'ADMIN'), projectCtrl.listFollowUps);
+
   // ── Clients ──────────────────────────────────────────────────────────────────
   router.get('/clients', authenticate(db), async (_req, res, next) => {
     try {
       const { rows } = await db.query(
-        `SELECT id, name, sector FROM client ORDER BY name`
+        `SELECT id, name, sector FROM client WHERE is_active = TRUE ORDER BY name`
       );
       res.json({
         success: true,
@@ -114,8 +126,12 @@ export function buildRouter(db: Pool): Router {
 
   // ── Projects ─────────────────────────────────────────────────────────────────
   router.get('/projects',             authenticate(db), projectCtrl.list);
+  router.get('/projects/:id/follow-ups', authenticate(db), authorize('COMMERCIAL', 'ADMIN'), projectCtrl.listProjectFollowUps);
+  router.post('/projects/:id/follow-ups', authenticate(db), authorize('COMMERCIAL', 'ADMIN'), projectCtrl.createFollowUp);
+  router.patch('/projects/:id/follow-ups/:followUpId', authenticate(db), authorize('COMMERCIAL', 'ADMIN'), projectCtrl.setFollowUpCompletion);
   router.get('/projects/:id',         authenticate(db), projectCtrl.getOne);
   router.post('/projects',            authenticate(db), authorize('COMMERCIAL', 'ADMIN'), projectCtrl.create);
+  router.patch('/projects/:id',       authenticate(db), authorize('COMMERCIAL', 'ADMIN'), projectCtrl.update);
   router.post('/projects/:id/submit', authenticate(db), authorize('COMMERCIAL', 'ADMIN'), projectCtrl.submit);
   router.patch('/projects/:id/status', authenticate(db), authorize('ADMIN'), projectCtrl.updateStatus);
 

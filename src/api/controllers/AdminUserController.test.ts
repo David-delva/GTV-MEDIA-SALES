@@ -7,6 +7,8 @@ function createHarness(repositoryOverrides: Record<string, unknown> = {}) {
     findAll: jest.fn(),
     create: jest.fn(),
     setActive: jest.fn(),
+    setRole: jest.fn(),
+    resetPassword: jest.fn(),
     ...repositoryOverrides,
   };
   const controller = new AdminUserController(repository as never);
@@ -72,6 +74,57 @@ describe('AdminUserController', () => {
     expect(await bcrypt.compare(password, createInput.passwordHash)).toBe(true);
     expect(response.status).toHaveBeenCalledWith(201);
     expect(response.json).toHaveBeenCalledWith(expect.objectContaining({ data: createdUser }));
+    expect(JSON.stringify(response.json.mock.calls[0][0])).not.toContain(password);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  test('does not allow an administrator to change their own role', async () => {
+    const { controller, repository, response, next } = createHarness();
+    const id = '50000000-0000-4000-8000-000000000001';
+
+    await controller.setRole(
+      { params: { id }, body: { role: 'COMMERCIAL' }, user: { id, role: 'ADMIN' } } as unknown as Request,
+      response as unknown as Response,
+      next as NextFunction
+    );
+
+    expect(repository.setRole).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 400 }));
+    expect(response.json).not.toHaveBeenCalled();
+  });
+
+  test('preserves the last active administrator when changing roles', async () => {
+    const { controller, repository, response, next } = createHarness({
+      setRole: jest.fn().mockResolvedValue('LAST_ADMIN'),
+    });
+    const id = '70000000-0000-4000-8000-000000000001';
+
+    await controller.setRole(
+      { params: { id }, body: { role: 'COMMERCIAL' }, user: { id: '80000000-0000-4000-8000-000000000001', role: 'ADMIN' } } as unknown as Request,
+      response as unknown as Response,
+      next as NextFunction
+    );
+
+    expect(repository.setRole).toHaveBeenCalledWith(id, 'COMMERCIAL');
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'LAST_ACTIVE_ADMIN', statusCode: 409 }));
+    expect(response.json).not.toHaveBeenCalled();
+  });
+
+  test('hashes temporary passwords and never returns them', async () => {
+    const { controller, repository, response, next } = createHarness({
+      resetPassword: jest.fn().mockResolvedValue(true),
+    });
+    const id = '60000000-0000-4000-8000-000000000001';
+    const password = 'Temporary-Password-2026!';
+
+    await controller.resetPassword(
+      { params: { id }, body: { password } } as unknown as Request,
+      response as unknown as Response,
+      next as NextFunction
+    );
+
+    const storedHash = repository.resetPassword.mock.calls[0][1] as string;
+    expect(await bcrypt.compare(password, storedHash)).toBe(true);
     expect(JSON.stringify(response.json.mock.calls[0][0])).not.toContain(password);
     expect(next).not.toHaveBeenCalled();
   });

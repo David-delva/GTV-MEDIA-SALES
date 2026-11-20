@@ -4,7 +4,7 @@
 // =============================================================================
 
 import React, { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { ApiError } from '../services/api';
 import { GtvLogo } from '../components/ui/AppShell';
@@ -139,6 +139,13 @@ export function LoginPage() {
                 {loading ? 'Connexion…' : 'Se connecter'}
               </button>
             </form>
+
+            <Link
+              to="/"
+              className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-bold text-slate-600 transition hover:border-[#0055B8]/30 hover:bg-[#eef3fb] hover:text-[#0055B8]"
+            >
+              ← Retour à l’accueil
+            </Link>
           </div>
         </main>
       </div>

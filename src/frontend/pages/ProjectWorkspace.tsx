@@ -13,6 +13,7 @@ import { useSimulatorStore } from '../store/simulatorStore';
 import { projectsApi } from '../services/api';
 import type { ProjectDto } from '../services/api';
 import { AppShell } from '../components/ui/AppShell';
+import { ProjectFollowUps } from '../components/projects/ProjectFollowUps';
 import { Link } from 'react-router-dom';
 
 interface ProjectWorkspaceProps {
@@ -150,6 +151,9 @@ export function ProjectWorkspace({ projectId, onSubmitSuccess }: ProjectWorkspac
           <SimulatorPanel />
         </div>
       </main>
+      <div className="mx-auto w-full max-w-[1600px] px-5 pb-6">
+        <ProjectFollowUps projectId={projectId} />
+      </div>
       </div>
     </AppShell>
   );

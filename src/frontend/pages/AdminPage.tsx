@@ -5,22 +5,26 @@ import { useAuthStore } from '../store/authStore';
 import { VisitorRequestInboxContent } from './VisitorRequestInboxPage';
 import {
   adminUsersApi,
+  clientsApi,
   formatsApi,
   projectsApi,
   rateCardsApi,
   visitorApi,
   type AdminRateCardDto,
+  type AdminClientDto,
   type AdminUserDto,
   type FormatDto,
   type ProjectDto,
   type VisitorInboxItem,
 } from '../services/api';
+import { downloadCsv } from '../../utils/csv';
 
-type AdminTab = 'overview' | 'rates' | 'users' | 'projects' | 'requests';
+type AdminTab = 'overview' | 'rates' | 'clients' | 'users' | 'projects' | 'requests';
 
 const TABS: Array<{ id: AdminTab; label: string }> = [
   { id: 'overview', label: 'Vue d’ensemble' },
   { id: 'rates', label: 'Grilles tarifaires' },
+  { id: 'clients', label: 'Clients' },
   { id: 'users', label: 'Comptes' },
   { id: 'projects', label: 'Projets' },
   { id: 'requests', label: 'Demandes visiteurs' },
@@ -42,6 +46,7 @@ const PROJECT_TRANSITIONS: Record<string, string[]> = {
 export function AdminPage() {
   const [tab, setTab] = useState<AdminTab>('overview');
   const [users, setUsers] = useState<AdminUserDto[]>([]);
+  const [clients, setClients] = useState<AdminClientDto[]>([]);
   const [rateCards, setRateCards] = useState<AdminRateCardDto[]>([]);
   const [projects, setProjects] = useState<ProjectDto[]>([]);
   const [requests, setRequests] = useState<VisitorInboxItem[]>([]);
@@ -54,14 +59,16 @@ export function AdminPage() {
     if (!silent) setLoading(true);
     setError(null);
     try {
-      const [userResponse, cardResponse, projectResponse, requestResponse, formatResponse] = await Promise.all([
+      const [userResponse, clientResponse, cardResponse, projectResponse, requestResponse, formatResponse] = await Promise.all([
         adminUsersApi.list(),
+        clientsApi.listAdmin(),
         rateCardsApi.listAdmin(),
         projectsApi.list(),
         visitorApi.inbox(),
         formatsApi.list(),
       ]);
       setUsers(userResponse.data);
+      setClients(clientResponse.data);
       setRateCards(cardResponse.data);
       setProjects(projectResponse.data);
       setRequests(requestResponse.data);
@@ -80,6 +87,7 @@ export function AdminPage() {
     !['ACCEPTE', 'REFUSE', 'EXPIRE', 'CLOS'].includes(request.status)
   ).length;
   const activeUsers = users.filter((user) => user.isActive).length;
+  const activeClients = clients.filter((client) => client.isActive).length;
   return (
     <AppShell eyebrow="Espace sécurisé · Administrateur" title="Administration">
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-5 lg:px-8">
@@ -119,6 +127,7 @@ export function AdminPage() {
               <OverviewPanel
                 activeUsers={activeUsers}
                 usersCount={users.length}
+                clientsCount={activeClients}
                 projects={projects}
                 rateCard={activeRateCard}
                 requestsCount={pendingRequests}
@@ -138,6 +147,13 @@ export function AdminPage() {
               <UsersPanel
                 users={users}
                 onChanged={(nextUsers, message) => { setUsers(nextUsers); setNotice(message); }}
+                onError={setError}
+              />
+            )}
+            {tab === 'clients' && (
+              <ClientsPanel
+                clients={clients}
+                onChanged={(nextClients, message) => { setClients(nextClients); setNotice(message); }}
                 onError={setError}
               />
             )}
@@ -162,6 +178,7 @@ export function AdminPage() {
 function OverviewPanel({
   activeUsers,
   usersCount,
+  clientsCount,
   projects,
   rateCard,
   requestsCount,
@@ -170,6 +187,7 @@ function OverviewPanel({
 }: {
   activeUsers: number;
   usersCount: number;
+  clientsCount: number;
   projects: ProjectDto[];
   rateCard?: AdminRateCardDto;
   requestsCount: number;
@@ -183,6 +201,7 @@ function OverviewPanel({
 
   const metrics = [
     { label: 'Comptes actifs', value: `${activeUsers} / ${usersCount}`, tab: 'users' as AdminTab, hint: 'Utilisateurs autorisés à se connecter' },
+    { label: 'Clients actifs', value: clientsCount, tab: 'clients' as AdminTab, hint: 'Annonceurs disponibles pour les nouveaux projets' },
     { label: 'Projets ouverts', value: projectCounts.open, tab: 'projects' as AdminTab, hint: `${projectCounts.submitted} soumis à traiter` },
     { label: 'Demandes à suivre', value: requestsCount, tab: 'requests' as AdminTab, hint: `${loadedRequests} demandes récentes chargées` },
     { label: 'Grille en vigueur', value: rateCard ? 'Active' : 'Aucune', tab: 'rates' as AdminTab, hint: rateCard?.name ?? 'Créez et renseignez une grille' },
@@ -190,7 +209,7 @@ function OverviewPanel({
 
   return (
     <section aria-label="Vue d’ensemble" className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {metrics.map((metric) => (
           <button key={metric.label} type="button" onClick={() => onSelect(metric.tab)} className="surface-card min-w-0 p-5 text-left transition hover:-translate-y-0.5 hover:border-[#0055B8]/30 hover:shadow-md">
             <p className="text-xs font-bold uppercase tracking-wide text-slate-400">{metric.label}</p>
@@ -205,6 +224,7 @@ function OverviewPanel({
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#0055B8]">Actions rapides</p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <QuickAction title="Gérer les tarifs" description="Préparer, compléter et activer une grille." onClick={() => onSelect('rates')} />
+            <QuickAction title="Gérer les clients" description="Créer, modifier et désactiver des annonceurs." onClick={() => onSelect('clients')} />
             <QuickAction title="Gérer les comptes" description="Créer ou désactiver un accès commercial." onClick={() => onSelect('users')} />
             <QuickAction title="Suivre les projets" description="Consulter le portefeuille et son avancement." onClick={() => onSelect('projects')} />
             <QuickAction title="Traiter les demandes" description="Mettre à jour le suivi des prospects." onClick={() => onSelect('requests')} />
@@ -519,6 +539,144 @@ function RateCardsPanel({
   );
 }
 
+function ClientsPanel({
+  clients,
+  onChanged,
+  onError,
+}: {
+  clients: AdminClientDto[];
+  onChanged: (clients: AdminClientDto[], message: string) => void;
+  onError: (message: string | null) => void;
+}) {
+  const [name, setName] = useState('');
+  const [sector, setSector] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [saving, setSaving] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  const visibleClients = clients.filter((client) => {
+    const matchesSearch = `${client.name} ${client.sector ?? ''}`.toLocaleLowerCase('fr').includes(search.trim().toLocaleLowerCase('fr'));
+    const matchesActive = activeFilter === 'all' || client.isActive === (activeFilter === 'active');
+    return matchesSearch && matchesActive;
+  });
+
+  const submitClient = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const cleanName = name.trim();
+    if (!cleanName) return onError('Le nom du client est obligatoire.');
+    onError(null);
+    setSaving(true);
+    try {
+      const payload = { name: cleanName, sector: sector.trim() || null };
+      if (editingId) {
+        const { data } = await clientsApi.update(editingId, payload);
+        onChanged(clients.map((client) => client.id === editingId ? data : client), 'Le client a été modifié.');
+      } else {
+        const { data } = await clientsApi.create(payload);
+        onChanged([data, ...clients], 'Le client a été créé.');
+      }
+      setName('');
+      setSector('');
+      setEditingId(null);
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Impossible d’enregistrer le client.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleActive = async (client: AdminClientDto) => {
+    onError(null);
+    setUpdatingId(client.id);
+    try {
+      await clientsApi.setActive(client.id, !client.isActive);
+      onChanged(clients.map((item) => item.id === client.id ? { ...item, isActive: !client.isActive } : item),
+        client.isActive ? 'Le client a été désactivé.' : 'Le client a été réactivé.');
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Impossible de modifier l’état du client.');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setName('');
+    setSector('');
+  };
+
+  return (
+    <section className="grid items-start gap-5 xl:grid-cols-[0.8fr_1.2fr]">
+      <form onSubmit={(event) => void submitClient(event)} className="surface-card space-y-4 p-5 sm:p-6">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wide text-[#0055B8]">{editingId ? 'Fiche annonceur' : 'Nouveau client'}</p>
+          <h2 className="mt-1 text-lg font-bold text-slate-900">{editingId ? 'Modifier le client' : 'Créer un client'}</h2>
+        </div>
+        <label className="block text-xs font-bold text-slate-600">Nom de l’organisation
+          <input required maxLength={150} value={name} onChange={(event) => setName(event.target.value)} className="form-control mt-1.5" />
+        </label>
+        <label className="block text-xs font-bold text-slate-600">Secteur d’activité
+          <input maxLength={50} value={sector} onChange={(event) => setSector(event.target.value)} className="form-control mt-1.5" />
+        </label>
+        <div className="flex gap-2">
+          <button type="submit" disabled={saving} className="h-11 flex-1 rounded-lg bg-[#0055B8] px-4 text-sm font-bold text-white hover:bg-[#00338D] disabled:opacity-50">
+            {saving ? 'Enregistrement…' : editingId ? 'Enregistrer' : 'Créer le client'}
+          </button>
+          {editingId && <button type="button" disabled={saving} onClick={cancelEdit} className="h-11 rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-600 hover:bg-slate-50">Annuler</button>}
+        </div>
+      </form>
+
+      <section className="surface-card min-w-0 p-5 sm:p-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Portefeuille clients</p>
+            <h2 className="mt-1 text-lg font-bold text-slate-900">{visibleClients.length} / {clients.length} client(s)</h2>
+          </div>
+          <button type="button" disabled={!visibleClients.length} onClick={() => downloadCsv('clients-gtv.csv',
+            ['Nom', 'Secteur', 'Statut', 'Date de création'],
+            visibleClients.map((client) => [client.name, client.sector, client.isActive ? 'Actif' : 'Désactivé', client.createdAt.slice(0, 10)]))}
+            className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-[#0055B8] hover:bg-[#eef3fb] disabled:opacity-40">
+            Exporter CSV
+          </button>
+        </div>
+        <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto]">
+          <label className="sr-only" htmlFor="admin-client-search">Rechercher un client</label>
+          <input id="admin-client-search" type="search" value={search} onChange={(event) => setSearch(event.target.value)} className="form-control" placeholder="Rechercher un nom ou un secteur…" />
+          <select aria-label="Filtrer les clients par statut" value={activeFilter} onChange={(event) => setActiveFilter(event.target.value as typeof activeFilter)} className="form-control sm:w-auto">
+            <option value="all">Tous les statuts</option><option value="active">Actifs</option><option value="inactive">Désactivés</option>
+          </select>
+        </div>
+        {visibleClients.length === 0 ? (
+          <p className="mt-5 text-sm text-slate-500">{clients.length ? 'Aucun client ne correspond à ces filtres.' : 'Aucun client à afficher.'}</p>
+        ) : (
+          <ul className="mt-4 divide-y divide-slate-100">
+            {visibleClients.map((client) => (
+              <li key={client.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <div className="min-w-0">
+                  <p className="break-words text-sm font-bold text-slate-800">{client.name}</p>
+                  <p className="text-xs text-slate-500">{client.sector || 'Secteur non renseigné'} · créé le {formatDate(client.createdAt.slice(0, 10))}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <StatusBadge status={client.isActive ? 'ACTIVE' : 'INACTIVE'} />
+                  <button type="button" onClick={() => { setEditingId(client.id); setName(client.name); setSector(client.sector ?? ''); }} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-[#0055B8] hover:bg-[#eef3fb]">Modifier</button>
+                  <button type="button" disabled={updatingId === client.id} onClick={() => void toggleActive(client)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50">
+                    {updatingId === client.id ? '…' : client.isActive ? 'Désactiver' : 'Réactiver'}
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-4 rounded-lg bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
+          Les clients désactivés sont conservés dans l’historique des projets, mais ne peuvent plus être choisis pour un nouveau projet.
+        </p>
+      </section>
+    </section>
+  );
+}
+
 function UsersPanel({
   users,
   onChanged,
@@ -535,7 +693,21 @@ function UsersPanel({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [saving, setSaving] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null);
+  const [resettingId, setResettingId] = useState<string | null>(null);
+  const [savingPasswordId, setSavingPasswordId] = useState<string | null>(null);
+  const [temporaryPassword, setTemporaryPassword] = useState('');
+  const [confirmTemporaryPassword, setConfirmTemporaryPassword] = useState('');
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'all' | AdminUserDto['role']>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const currentUserId = useAuthStore((state) => state.user?.id);
+  const visibleUsers = users.filter((user) => {
+    const matchesSearch = `${user.name} ${user.email}`.toLocaleLowerCase('fr').includes(search.trim().toLocaleLowerCase('fr'));
+    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
+    const matchesActive = activeFilter === 'all' || user.isActive === (activeFilter === 'active');
+    return matchesSearch && matchesRole && matchesActive;
+  });
 
   const createUser = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -572,6 +744,44 @@ function UsersPanel({
     }
   };
 
+  const changeRole = async (user: AdminUserDto, nextRole: AdminUserDto['role']) => {
+    if (user.role === nextRole) return;
+    onError(null);
+    setUpdatingRoleId(user.id);
+    try {
+      await adminUsersApi.setRole(user.id, nextRole);
+      onChanged(users.map((item) => item.id === user.id ? { ...item, role: nextRole } : item),
+        `Le rôle de ${user.email} est maintenant « ${roleLabel(nextRole)} ».`);
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Impossible de modifier le rôle.');
+    } finally {
+      setUpdatingRoleId(null);
+    }
+  };
+
+  const resetUserPassword = async (event: FormEvent<HTMLFormElement>, user: AdminUserDto) => {
+    event.preventDefault();
+    onError(null);
+    if (temporaryPassword.length < 12 || new TextEncoder().encode(temporaryPassword).length > 72) {
+      return onError('Le mot de passe doit contenir au moins 12 caractères et 72 octets maximum.');
+    }
+    if (temporaryPassword !== confirmTemporaryPassword) {
+      return onError('Les deux mots de passe ne correspondent pas.');
+    }
+    setSavingPasswordId(user.id);
+    try {
+      await adminUsersApi.resetPassword(user.id, temporaryPassword);
+      setTemporaryPassword('');
+      setConfirmTemporaryPassword('');
+      setResettingId(null);
+      onChanged(users, `Le mot de passe de ${user.email} a été réinitialisé. Transmettez le mot de passe temporaire de façon sécurisée.`);
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Impossible de réinitialiser le mot de passe.');
+    } finally {
+      setSavingPasswordId(null);
+    }
+  };
+
   return (
     <section className="grid items-start gap-5 xl:grid-cols-[0.8fr_1.2fr]">
       <form onSubmit={(event) => void createUser(event)} className="surface-card space-y-4 p-5 sm:p-6">
@@ -603,41 +813,93 @@ function UsersPanel({
       </form>
 
       <section className="surface-card min-w-0 p-5 sm:p-6">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Accès enregistrés</p>
-            <h2 className="mt-1 text-lg font-bold text-slate-900">{users.length} compte(s)</h2>
+            <h2 className="mt-1 text-lg font-bold text-slate-900">{visibleUsers.length} / {users.length} compte(s)</h2>
           </div>
+          <button type="button" disabled={!visibleUsers.length} onClick={() => downloadCsv('comptes-gtv.csv',
+            ['Nom', 'E-mail', 'Rôle', 'Statut', 'Date de création'],
+            visibleUsers.map((user) => [user.name, user.email, roleLabel(user.role), user.isActive ? 'Actif' : 'Désactivé', user.createdAt.slice(0, 10)]))}
+            className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-[#0055B8] hover:bg-[#eef3fb] disabled:opacity-40">
+            Exporter CSV
+          </button>
         </div>
-        {users.length === 0 ? (
+        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          <label className="sr-only" htmlFor="admin-user-search">Rechercher un compte</label>
+          <input id="admin-user-search" type="search" value={search} onChange={(event) => setSearch(event.target.value)} className="form-control" placeholder="Rechercher nom ou e-mail…" />
+          <select aria-label="Filtrer les comptes par rôle" value={roleFilter} onChange={(event) => setRoleFilter(event.target.value as typeof roleFilter)} className="form-control">
+            <option value="all">Tous les rôles</option><option value="ADMIN">Administrateur</option><option value="COMMERCIAL">Commercial</option><option value="VIEWER">Lecture seule</option>
+          </select>
+          <select aria-label="Filtrer les comptes par statut" value={activeFilter} onChange={(event) => setActiveFilter(event.target.value as typeof activeFilter)} className="form-control">
+            <option value="all">Tous les statuts</option><option value="active">Actifs</option><option value="inactive">Désactivés</option>
+          </select>
+        </div>
+        {visibleUsers.length === 0 ? (
           <p className="mt-5 text-sm text-slate-500">Aucun compte à afficher.</p>
         ) : (
           <ul className="mt-4 divide-y divide-slate-100">
-            {users.map((user) => (
-              <li key={user.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                <div className="min-w-0">
-                  <p className="break-words text-sm font-bold text-slate-800">{user.name}</p>
-                  <p className="break-all text-xs text-slate-500">{user.email} · {roleLabel(user.role)}</p>
-                  <p className="mt-1 text-[11px] text-slate-400">Créé le {formatDate(user.createdAt.slice(0, 10))}</p>
+            {visibleUsers.map((user) => (
+              <li key={user.id} className="space-y-3 py-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="break-words text-sm font-bold text-slate-800">{user.name}</p>
+                    <p className="break-all text-xs text-slate-500">{user.email}</p>
+                    <p className="mt-1 text-[11px] text-slate-400">Créé le {formatDate(user.createdAt.slice(0, 10))}</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge status={user.isActive ? 'ACTIVE' : 'INACTIVE'} />
+                    <select
+                      aria-label={`Rôle de ${user.email}`}
+                      value={user.role}
+                      disabled={updatingRoleId === user.id || user.id === currentUserId}
+                      onChange={(event) => void changeRole(user, event.target.value as AdminUserDto['role'])}
+                      className="form-control !min-h-[38px] !w-auto !py-1.5 text-xs font-semibold disabled:opacity-50"
+                      title={user.id === currentUserId ? 'Vous ne pouvez pas modifier votre propre rôle.' : undefined}
+                    >
+                      <option value="ADMIN">Administrateur</option><option value="COMMERCIAL">Commercial</option><option value="VIEWER">Lecture seule</option>
+                    </select>
+                    <button
+                      type="button"
+                      disabled={updatingId === user.id || user.id === currentUserId}
+                      onClick={() => void toggleActive(user)}
+                      className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      title={user.id === currentUserId ? 'Vous ne pouvez pas désactiver votre propre compte.' : undefined}
+                    >
+                      {updatingId === user.id ? '…' : user.isActive ? 'Désactiver' : 'Réactiver'}
+                    </button>
+                    <button type="button" onClick={() => {
+                      setResettingId(resettingId === user.id ? null : user.id);
+                      setTemporaryPassword('');
+                      setConfirmTemporaryPassword('');
+                    }} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-[#0055B8] hover:bg-[#eef3fb]">
+                      Réinitialiser le mot de passe
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <StatusBadge status={user.isActive ? 'ACTIVE' : 'INACTIVE'} />
-                  <button
-                    type="button"
-                    disabled={updatingId === user.id || user.id === currentUserId}
-                    onClick={() => void toggleActive(user)}
-                    className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                    title={user.id === currentUserId ? 'Vous ne pouvez pas désactiver votre propre compte.' : undefined}
-                  >
-                    {updatingId === user.id ? '…' : user.isActive ? 'Désactiver' : 'Réactiver'}
-                  </button>
-                </div>
+                {resettingId === user.id && (
+                  <form onSubmit={(event) => void resetUserPassword(event, user)} className="grid gap-2 rounded-lg bg-slate-50 p-3 sm:grid-cols-2">
+                    <label className="text-xs font-semibold text-slate-600">Nouveau mot de passe temporaire
+                      <input required type="password" minLength={12} maxLength={72} autoComplete="new-password" value={temporaryPassword} onChange={(event) => setTemporaryPassword(event.target.value)} className="form-control mt-1" />
+                    </label>
+                    <label className="text-xs font-semibold text-slate-600">Confirmer le mot de passe
+                      <input required type="password" minLength={12} maxLength={72} autoComplete="new-password" value={confirmTemporaryPassword} onChange={(event) => setConfirmTemporaryPassword(event.target.value)} className="form-control mt-1" />
+                    </label>
+                    <p className="text-[11px] leading-4 text-slate-500 sm:col-span-2">Le nouveau mot de passe ne sera pas envoyé par e-mail ni affiché après l’enregistrement. Remettez-le à la personne par un canal sécurisé.</p>
+                    <div className="flex justify-end gap-2 sm:col-span-2">
+                      <button type="button" onClick={() => setResettingId(null)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600">Annuler</button>
+                      <button type="submit" disabled={savingPasswordId === user.id} className="rounded-lg bg-[#0055B8] px-3 py-2 text-xs font-bold text-white disabled:opacity-50">
+                        {savingPasswordId === user.id ? 'Enregistrement…' : 'Valider le nouveau mot de passe'}
+                      </button>
+                    </div>
+                  </form>
+                )}
               </li>
             ))}
           </ul>
         )}
         <p className="mt-4 rounded-lg bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
-          La désactivation bloque immédiatement les nouvelles requêtes authentifiées de ce compte. Le dernier administrateur actif ne peut pas être désactivé.
+          La désactivation bloque les nouvelles requêtes. Le dernier administrateur actif ne peut être ni désactivé ni rétrogradé.
         </p>
       </section>
     </section>
@@ -654,6 +916,12 @@ function ProjectsPanel({
   onError: (message: string | null) => void;
 }) {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const visibleProjects = projects.filter((project) => {
+    const matchesSearch = `${project.reference} ${project.title}`.toLocaleLowerCase('fr').includes(search.trim().toLocaleLowerCase('fr'));
+    return matchesSearch && (statusFilter === 'all' || project.status === statusFilter);
+  });
 
   const updateStatus = async (project: ProjectDto, status: string) => {
     onError(null);
@@ -670,10 +938,33 @@ function ProjectsPanel({
 
   return (
     <section className="space-y-3">
-      <p className="text-sm text-slate-500">{projects.length} projet(s) dans le portefeuille. Les statuts suivent les transitions métier autorisées.</p>
-      {projects.length === 0 ? (
-        <div className="surface-card p-10 text-center text-sm text-slate-500">Aucun projet à afficher.</div>
-      ) : projects.map((project) => {
+      <div className="surface-card flex flex-wrap items-end justify-between gap-3 p-4">
+        <div>
+          <p className="text-sm text-slate-500">{visibleProjects.length} / {projects.length} projet(s) dans le portefeuille. Les statuts suivent les transitions métier autorisées.</p>
+        </div>
+        <button type="button" disabled={!visibleProjects.length} onClick={() => downloadCsv('projets-gtv.csv',
+          ['Référence', 'Titre', 'Statut', 'Budget cible XAF', 'Début campagne', 'Fin campagne'],
+          visibleProjects.map((project) => [
+            project.reference,
+            project.title,
+            PROJECT_STATUS_LABELS[project.status] ?? project.status,
+            project.budgetTarget,
+            project.campaignStart,
+            project.campaignEnd,
+          ]))}
+          className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-[#0055B8] hover:bg-[#eef3fb] disabled:opacity-40">
+          Exporter CSV
+        </button>
+        <label className="sr-only" htmlFor="admin-project-search">Rechercher un projet</label>
+        <input id="admin-project-search" type="search" value={search} onChange={(event) => setSearch(event.target.value)} className="form-control min-w-[220px] flex-1" placeholder="Rechercher une référence ou un titre…" />
+        <select aria-label="Filtrer les projets par statut" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="form-control sm:w-auto">
+          <option value="all">Tous les statuts</option>
+          {Object.entries(PROJECT_STATUS_LABELS).map(([status, label]) => <option key={status} value={status}>{label}</option>)}
+        </select>
+      </div>
+      {visibleProjects.length === 0 ? (
+        <div className="surface-card p-10 text-center text-sm text-slate-500">{projects.length ? 'Aucun projet ne correspond à ces filtres.' : 'Aucun projet à afficher.'}</div>
+      ) : visibleProjects.map((project) => {
         const transitions = PROJECT_TRANSITIONS[project.status] ?? [];
         return (
           <article key={project.id} className="surface-card flex flex-col justify-between gap-4 p-4 sm:flex-row sm:items-center sm:p-5">

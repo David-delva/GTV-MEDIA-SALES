@@ -4,6 +4,8 @@
 // les erreurs réseau, et le baseURL. Aucun composant ne fait de fetch direct.
 // =============================================================================
 
+import { useAuthStore } from '../store/authStore';
+
 const BASE_URL = import.meta.env.VITE_API_URL ?? '/api';
 
 async function request<T>(
@@ -21,18 +23,34 @@ async function request<T>(
     },
   });
 
-  const body = await res.json();
+  const responseText = await res.text();
+  let body: { data?: T; error?: { code?: string; message?: string } } = {};
+  if (responseText) {
+    try {
+      body = JSON.parse(responseText) as typeof body;
+    } catch {
+      if (res.ok) {
+        throw new ApiError('INVALID_RESPONSE', 'Réponse invalide du serveur', res.status);
+      }
+    }
+  }
 
   // 206 = mode dégradé → on laisse passer, le composant gère l'avertissement
   if (!res.ok && res.status !== 206) {
+    if (res.status === 401) {
+      useAuthStore.getState().logout();
+      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+        window.location.replace('/login');
+      }
+    }
     throw new ApiError(
       body.error?.code ?? 'UNKNOWN',
-      body.error?.message ?? 'Erreur inconnue',
+      body.error?.message ?? `La requête a échoué (${res.status}).`,
       res.status
     );
   }
 
-  return { data: body.data, status: res.status };
+  return { data: body.data as T, status: res.status };
 }
 
 export class ApiError extends Error {
@@ -172,24 +190,59 @@ export interface ClientDto {
 
 export const clientsApi = {
   list: () => request<ClientDto[]>('/clients'),
+  listAdmin: () => request<AdminClientDto[]>('/admin/clients'),
+  create: (payload: { name: string; sector: string | null }) =>
+    request<AdminClientDto>('/admin/clients', { method: 'POST', body: JSON.stringify(payload) }),
+  update: (id: string, payload: { name: string; sector: string | null }) =>
+    request<AdminClientDto>(`/admin/clients/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  setActive: (id: string, isActive: boolean) =>
+    request<{ id: string; isActive: boolean }>(`/admin/clients/${id}/active`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isActive }),
+    }),
 };
+
+export interface AdminClientDto extends ClientDto {
+  isActive: boolean;
+  createdAt: string;
+}
 
 export interface ProjectDto {
   id: string;
   reference: string;
   title: string;
   clientId: string;
+  clientName: string;
   status: string;
   campaignStart: string | null;
   campaignEnd: string | null;
   budgetTarget: number | null;
   rateCardId: string;
   scoringSnapshot: unknown | null;
+  updatedAt: string;
+}
+
+export interface ProjectFollowUpDto {
+  id: string;
+  projectId: string;
+  note: string;
+  dueDate: string;
+  completedAt: string | null;
+  createdAt: string;
+  projectTitle?: string;
+  projectReference?: string;
 }
 
 export const projectsApi = {
   list:   ()           => request<ProjectDto[]>('/projects'),
   getOne: (id: string) => request<ProjectDto>(`/projects/${id}`),
+  update: (id: string, payload: {
+    title: string;
+    clientId: string;
+    campaignStart: string | null;
+    campaignEnd: string | null;
+    budgetTarget: number | null;
+  }) => request<{ id: string }>(`/projects/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   updateStatus: (id: string, status: string) =>
     request<{ id: string; status: string }>(`/projects/${id}/status`, {
       method: 'PATCH',
@@ -207,6 +260,22 @@ export const projectsApi = {
     request<never>(`/projects/${id}/submit`, {
       method: 'POST',
       body: JSON.stringify({ scoringSnapshot }),
+    }),
+};
+
+export const projectFollowUpsApi = {
+  list: () => request<ProjectFollowUpDto[]>('/projects/follow-ups'),
+  listForProject: (projectId: string) =>
+    request<ProjectFollowUpDto[]>(`/projects/${projectId}/follow-ups`),
+  create: (projectId: string, payload: { note: string; dueDate: string }) =>
+    request<ProjectFollowUpDto>(`/projects/${projectId}/follow-ups`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  setCompleted: (projectId: string, followUpId: string, completed: boolean) =>
+    request<{ id: string; completed: boolean }>(`/projects/${projectId}/follow-ups/${followUpId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ completed }),
     }),
 };
 
@@ -229,6 +298,16 @@ export const adminUsersApi = {
     request<{ id: string; isActive: boolean }>(`/admin/users/${id}/active`, {
       method: 'PATCH',
       body: JSON.stringify({ isActive }),
+    }),
+  setRole: (id: string, role: AdminUserDto['role']) =>
+    request<{ id: string; role: AdminUserDto['role'] }>(`/admin/users/${id}/role`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
+    }),
+  resetPassword: (id: string, password: string) =>
+    request<{ id: string }>(`/admin/users/${id}/password`, {
+      method: 'PATCH',
+      body: JSON.stringify({ password }),
     }),
 };
 

@@ -35,7 +35,7 @@ describe('authenticate middleware', () => {
   test('loads the current role from the active account record', async () => {
     const db = {
       query: jest.fn().mockResolvedValue({
-        rows: [{ id: userId, email: 'admin@example.invalid', name: 'Admin', role: 'ADMIN' }],
+        rows: [{ id: userId, email: 'admin@example.invalid', name: 'Admin', role: 'ADMIN', password_version: 0 }],
       }),
     };
     const token = jwt.sign({ id: userId, role: 'COMMERCIAL' }, 'test-secret');
@@ -51,5 +51,21 @@ describe('authenticate middleware', () => {
       role: 'ADMIN',
     });
     expect(next).toHaveBeenCalledWith();
+  });
+
+  test('rejects sessions issued before a password reset', async () => {
+    const db = {
+      query: jest.fn().mockResolvedValue({
+        rows: [{ id: userId, email: 'admin@example.invalid', name: 'Admin', role: 'ADMIN', password_version: 2 }],
+      }),
+    };
+    const token = jwt.sign({ id: userId, tokenVersion: 1 }, 'test-secret');
+    const req = { headers: { authorization: `Bearer ${token}` } } as Request;
+    const next = jest.fn();
+
+    await authenticate(db as never)(req, {} as Response, next as NextFunction);
+
+    expect(req).not.toHaveProperty('user');
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 401 }));
   });
 });

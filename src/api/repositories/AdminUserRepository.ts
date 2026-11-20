@@ -80,6 +80,57 @@ export class AdminUserRepository {
       client.release();
     }
   }
+
+  async setRole(id: string, role: UserRole): Promise<'UPDATED' | 'NOT_FOUND' | 'LAST_ADMIN'> {
+    const client = await this.db.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `SELECT id FROM "user"
+         WHERE role = 'ADMIN' AND is_active = TRUE
+         ORDER BY id
+         FOR UPDATE`
+      );
+      const { rows: targetRows } = await client.query(
+        `SELECT id, role, is_active FROM "user" WHERE id = $1 FOR UPDATE`,
+        [id]
+      );
+      const target = targetRows[0];
+      if (!target) {
+        await client.query('ROLLBACK');
+        return 'NOT_FOUND';
+      }
+
+      if (target.role === 'ADMIN' && target.is_active && role !== 'ADMIN') {
+        const { rows: activeAdmins } = await client.query(
+          `SELECT id FROM "user" WHERE role = 'ADMIN' AND is_active = TRUE`
+        );
+        if (activeAdmins.length <= 1) {
+          await client.query('ROLLBACK');
+          return 'LAST_ADMIN';
+        }
+      }
+
+      await client.query(`UPDATE "user" SET role = $2 WHERE id = $1`, [id, role]);
+      await client.query('COMMIT');
+      return 'UPDATED';
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async resetPassword(id: string, passwordHash: string): Promise<boolean> {
+    const { rowCount } = await this.db.query(
+      `UPDATE "user"
+       SET password_hash = $2, password_version = password_version + 1
+       WHERE id = $1`,
+      [id, passwordHash]
+    );
+    return rowCount === 1;
+  }
 }
 
 function mapUser(row: Record<string, unknown>): AdminUserRow {

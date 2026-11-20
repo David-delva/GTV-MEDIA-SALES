@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { AppShell } from '../components/ui/AppShell';
 import { visitorApi } from '../services/api';
 import type { VisitorInboxItem } from '../services/api';
+import { downloadCsv } from '../../utils/csv';
 
 const STATUSES = [
   ['ACCUSE_RECU', 'Accusé réception'],
@@ -29,6 +30,14 @@ export function VisitorRequestInboxContent() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const visibleRequests = requests.filter((item) => {
+    const matchesSearch = `${item.reference} ${item.companyName} ${item.fullName} ${item.email}`
+      .toLocaleLowerCase('fr')
+      .includes(search.trim().toLocaleLowerCase('fr'));
+    return matchesSearch && (statusFilter === 'all' || item.status === statusFilter);
+  });
 
   const loadRequests = useCallback(async () => {
     setLoading(true);
@@ -79,8 +88,41 @@ export function VisitorRequestInboxContent() {
             <p className="mt-1 text-sm text-slate-400">Les demandes de devis publiques apparaîtront ici.</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {requests.map((item) => {
+          <div>
+            <section className="surface-card mb-4 grid gap-3 p-4 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+              <label className="block text-xs font-bold text-slate-600">
+                Rechercher une demande
+                <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} className="form-control mt-1.5" placeholder="Référence, entreprise, contact ou e-mail…" />
+              </label>
+              <label className="block text-xs font-bold text-slate-600">
+                Statut
+                <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="form-control mt-1.5">
+                  <option value="all">Tous les statuts</option>
+                  {requests.some((request) => request.status === 'SOUMISE') && <option value="SOUMISE">Nouvelle demande</option>}
+                  {STATUSES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select>
+              </label>
+              <button type="button" disabled={!visibleRequests.length} onClick={() => downloadCsv('demandes-visiteurs-gtv.csv',
+                ['Référence', 'Entreprise', 'Contact', 'E-mail', 'Statut', 'Objectif', 'Date de soumission', 'Montant estimé'],
+                visibleRequests.map((item) => [
+                  item.reference,
+                  item.companyName,
+                  item.fullName,
+                  item.email,
+                  item.status,
+                  item.objective ?? item.brief.objective,
+                  item.submittedAt?.slice(0, 10),
+                  item.plan.reduce((total, line) => total + line.grossTotal, 0),
+                ]))}
+                className="h-11 rounded-lg border border-slate-200 px-3 text-xs font-bold text-[#0055B8] hover:bg-[#eef3fb] disabled:opacity-40">
+                Exporter {visibleRequests.length} demande(s)
+              </button>
+              <p className="text-xs text-slate-500 sm:col-span-3">{visibleRequests.length} demande(s) affichée(s) sur {requests.length} chargée(s).</p>
+            </section>
+            {visibleRequests.length === 0 ? (
+              <div className="surface-card p-10 text-center text-sm text-slate-500">Aucune demande ne correspond à ces filtres.</div>
+            ) : <div className="space-y-4">
+            {visibleRequests.map((item) => {
               const totalCents = item.plan.reduce((sum, line) => sum + Math.round(line.grossTotal * 100), 0);
               const total = totalCents / 100;
               const currency = item.plan[0]?.currency ?? 'XAF';
@@ -129,6 +171,7 @@ export function VisitorRequestInboxContent() {
                 </article>
               );
             })}
+            </div>}
           </div>
         )}
     </main>

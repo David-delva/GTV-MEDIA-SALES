@@ -26,6 +26,6 @@ app.use('/api', buildRouter(db));
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`GTV Media Sales API - port ${PORT} - OK`));
+app.listen(Number(PORT), '0.0.0.0', () => console.log(`GTV Media Sales API - port ${PORT} - OK`));
 
 export { app };

@@ -86,6 +86,47 @@ export class AdminUserController {
       next(error);
     }
   };
+
+  setRole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.params;
+      if (!UUID_PATTERN.test(id)) return next(Errors.validation({ field: 'id' }));
+      const role = req.body?.role;
+      if (typeof role !== 'string' || !ROLES.has(role as UserRole)) {
+        return next(Errors.validation({ field: 'role' }));
+      }
+      if (req.user?.id === id && role !== req.user.role) {
+        return next(Errors.validation({ message: 'Vous ne pouvez pas modifier votre propre rôle.' }));
+      }
+
+      const result = await this.repository.setRole(id, role as UserRole);
+      if (result === 'NOT_FOUND') return next(Errors.notFound('user', id));
+      if (result === 'LAST_ADMIN') {
+        return next(new AppError('LAST_ACTIVE_ADMIN', 'Au moins un compte administrateur actif doit être conservé.', 409));
+      }
+      res.json({ success: true, data: { id, role } });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  resetPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.params;
+      if (!UUID_PATTERN.test(id)) return next(Errors.validation({ field: 'id' }));
+      const password = typeof req.body?.password === 'string' ? req.body.password : '';
+      if (password.length < 12 || Buffer.byteLength(password, 'utf8') > 72) {
+        return next(Errors.validation({ field: 'password', minLength: 12, maxBytes: 72 }));
+      }
+      const passwordHash = await bcrypt.hash(password, 12);
+      if (!await this.repository.resetPassword(id, passwordHash)) {
+        return next(Errors.notFound('user', id));
+      }
+      res.json({ success: true, data: { id } });
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 
 function isUniqueViolation(error: unknown): boolean {

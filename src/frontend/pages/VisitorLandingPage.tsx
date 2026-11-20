@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { VisitorShell } from '../components/ui/AppShell';
+import { GtvLogo, VisitorShell } from '../components/ui/AppShell';
 import { visitorApi, type VisitorCatalogDto, type VisitorCatalogLine } from '../services/api';
 import { catalogChannelName, catalogDaypartName, catalogProductName } from '../utils/catalogDisplay';
 import { mediaImageForCategory } from '../utils/mediaAssets';
@@ -131,9 +131,7 @@ export function VisitorLandingPage() {
                     <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#009A44]">Votre espace annonceur</p>
                     <h2 className="mt-2 text-xl font-bold text-slate-900">Une démarche simple, accompagnée</h2>
                   </div>
-                  <div className="gtv-mark shrink-0" aria-hidden="true">
-                    {Array.from({ length: 9 }).map((_, i) => <span key={i} />)}
-                  </div>
+                  <div className="shrink-0"><GtvLogo compact /></div>
                 </div>
                 <div className="mt-6 space-y-3">
                   {STEPS.map((step) => (

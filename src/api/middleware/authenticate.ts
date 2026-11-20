@@ -20,20 +20,30 @@ export function authenticate(db: Pool) {
     }
 
     let userId: string;
+    let tokenVersion = 0;
     try {
-      const payload = jwt.verify(authHeader.slice(7), jwtSecret) as Partial<AuthUser>;
+      const payload = jwt.verify(authHeader.slice(7), jwtSecret) as Partial<AuthUser> & { tokenVersion?: unknown };
       if (typeof payload.id !== 'string') return next(Errors.unauthenticated());
+      if (payload.tokenVersion !== undefined &&
+          (typeof payload.tokenVersion !== 'number' || !Number.isInteger(payload.tokenVersion) || payload.tokenVersion < 0)) {
+        return next(Errors.unauthenticated());
+      }
       userId = payload.id;
+      tokenVersion = payload.tokenVersion ?? 0;
     } catch {
       return next(Errors.unauthenticated());
     }
 
     try {
       const { rows } = await db.query(
-        `SELECT id, email, name, role FROM "user" WHERE id = $1 AND is_active = TRUE`,
+        `SELECT id, email, name, role, password_version
+         FROM "user" WHERE id = $1 AND is_active = TRUE`,
         [userId]
       );
       if (!rows[0]) return next(Errors.unauthenticated());
+      if (tokenVersion !== Number(rows[0].password_version ?? 0)) {
+        return next(Errors.unauthenticated());
+      }
 
       req.user = {
         id: rows[0].id as string,

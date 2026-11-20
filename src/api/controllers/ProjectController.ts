@@ -34,6 +34,91 @@ export class ProjectController {
     }
   };
 
+  listFollowUps = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const ownerId = req.user!.role === 'COMMERCIAL' ? req.user!.id : undefined;
+      const followUps = await this.projectRepo.findFollowUps(ownerId);
+      res.json({ success: true, data: followUps });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  listProjectFollowUps = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.params;
+      if (!UUID_PATTERN.test(id)) return next(Errors.validation({ field: 'id' }));
+      const project = await this.projectRepo.findById(id);
+      if (!project) return next(Errors.notFound('project', id));
+      if (req.user!.role === 'COMMERCIAL' && project.ownerId !== req.user!.id) {
+        return next(Errors.forbidden('accès à un projet d\'un autre commercial'));
+      }
+
+      const followUps = await this.projectRepo.findProjectFollowUps(id);
+      res.json({ success: true, data: followUps });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  createFollowUp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.params;
+      if (!UUID_PATTERN.test(id)) return next(Errors.validation({ field: 'id' }));
+      if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
+        return next(Errors.validation({ field: 'body' }));
+      }
+      const note = typeof req.body.note === 'string' ? req.body.note.trim() : '';
+      const dueDate = req.body.dueDate;
+      if (!note || note.length > 2000) {
+        return next(Errors.validation({ field: 'note', maxLength: 2000 }));
+      }
+      if (typeof dueDate !== 'string' || !isDateOnly(dueDate)) {
+        return next(Errors.validation({ field: 'dueDate' }));
+      }
+
+      const project = await this.projectRepo.findById(id);
+      if (!project) return next(Errors.notFound('project', id));
+      if (req.user!.role === 'COMMERCIAL' && project.ownerId !== req.user!.id) {
+        return next(Errors.forbidden('accès à un projet d\'un autre commercial'));
+      }
+
+      const followUp = await this.projectRepo.createFollowUp({
+        projectId: id,
+        authorId: req.user!.id,
+        note,
+        dueDate,
+      });
+      res.status(201).json({ success: true, data: followUp });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  setFollowUpCompletion = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id, followUpId } = req.params;
+      if (!UUID_PATTERN.test(id) || !UUID_PATTERN.test(followUpId)) {
+        return next(Errors.validation({ field: 'id' }));
+      }
+      if (!req.body || typeof req.body.completed !== 'boolean') {
+        return next(Errors.validation({ field: 'completed' }));
+      }
+
+      const project = await this.projectRepo.findById(id);
+      if (!project) return next(Errors.notFound('project', id));
+      if (req.user!.role === 'COMMERCIAL' && project.ownerId !== req.user!.id) {
+        return next(Errors.forbidden('accès à un projet d\'un autre commercial'));
+      }
+
+      const updated = await this.projectRepo.setFollowUpCompletion(id, followUpId, req.body.completed);
+      if (!updated) return next(Errors.notFound('project_follow_up', followUpId));
+      res.json({ success: true, data: { id: followUpId, completed: req.body.completed } });
+    } catch (err) {
+      next(err);
+    }
+  };
+
   /** GET /api/projects/:id */
   getOne = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -90,6 +175,9 @@ export class ProjectController {
       if (!title || !clientId) {
         return next(Errors.validation({ required: ['title', 'clientId'] }));
       }
+      if (!await this.projectRepo.hasActiveClient(clientId)) {
+        return next(Errors.notFound('client', clientId));
+      }
 
       // Résolution automatique de la grille active
       const activeCard = await this.rateCardRepo.findActive();
@@ -104,8 +192,62 @@ export class ProjectController {
         campaignEnd,
         budgetTarget,
       });
+      if (!id) return next(Errors.notFound('client', clientId));
 
       res.status(201).json({ success: true, data: { id } } satisfies ApiResponse<{ id: string }>);
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.params;
+      if (!UUID_PATTERN.test(id)) return next(Errors.validation({ field: 'id' }));
+      if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
+        return next(Errors.validation({ field: 'body' }));
+      }
+
+      const title = typeof req.body.title === 'string' ? req.body.title.trim() : '';
+      const clientId = req.body.clientId;
+      const campaignStart = optionalDate(req.body.campaignStart);
+      const campaignEnd = optionalDate(req.body.campaignEnd);
+      const budgetTarget = optionalBudget(req.body.budgetTarget);
+      if (!title || title.length > 200) return next(Errors.validation({ field: 'title', maxLength: 200 }));
+      if (typeof clientId !== 'string' || !UUID_PATTERN.test(clientId)) {
+        return next(Errors.validation({ field: 'clientId' }));
+      }
+      if (campaignStart === undefined || campaignEnd === undefined) {
+        return next(Errors.validation({ field: 'campaignDate' }));
+      }
+      if (campaignStart && campaignEnd && campaignEnd < campaignStart) {
+        return next(Errors.validation({ field: 'campaignEnd', message: 'La date de fin doit être postérieure ou égale à la date de début.' }));
+      }
+      if (budgetTarget === undefined) return next(Errors.validation({ field: 'budgetTarget' }));
+
+      const project = await this.projectRepo.findById(id);
+      if (!project) return next(Errors.notFound('project', id));
+      if (req.user!.role === 'COMMERCIAL' && project.ownerId !== req.user!.id) {
+        return next(Errors.forbidden('modification d\'un projet d\'un autre commercial'));
+      }
+      if (project.status !== 'DRAFT') {
+        return next(new AppError('PROJECT_NOT_EDITABLE', 'Seuls les projets en brouillon peuvent être modifiés.', 409));
+      }
+      if (!await this.projectRepo.hasActiveClient(clientId)) {
+        return next(Errors.notFound('client', clientId));
+      }
+
+      const updated = await this.projectRepo.update(id, {
+        title,
+        clientId,
+        campaignStart,
+        campaignEnd,
+        budgetTarget,
+      });
+      if (!updated) {
+        return next(new AppError('PROJECT_UPDATE_CONFLICT', 'Le projet a changé ou son annonceur n’est plus actif. Actualisez la page.', 409));
+      }
+      res.json({ success: true, data: { id } });
     } catch (err) {
       next(err);
     }
@@ -137,4 +279,20 @@ export class ProjectController {
       next(err);
     }
   };
+}
+
+function optionalDate(value: unknown): string | null | undefined {
+  if (value === undefined || value === null || value === '') return null;
+  return typeof value === 'string' && isDateOnly(value) ? value : undefined;
+}
+
+function optionalBudget(value: unknown): number | null | undefined {
+  if (value === undefined || value === null || value === '') return null;
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
+}
+
+function isDateOnly(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
